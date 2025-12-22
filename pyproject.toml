@@ -1,0 +1,9 @@
+[project]
+name = "prompt-copier"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12.11"
+dependencies = [
+    "flask>=3.1.2",
+]

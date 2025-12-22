@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prompt Copier</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background-color: #0d1117;
+            color: #c9d1d9;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #58a6ff;
+            margin-bottom: 2rem;
+            font-weight: 600;
+        }
+
+        h2 {
+            color: #8b949e;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1rem;
+            margin-top: 2rem;
+        }
+
+        .prompt-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .prompt-card {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 1.5rem;
+            transition: border-color 0.2s;
+        }
+
+        .prompt-card:hover {
+            border-color: #58a6ff;
+        }
+
+        .prompt-card h3 {
+            color: #f0f6fc;
+            font-size: 1.125rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .prompt-card .description {
+            color: #8b949e;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+        }
+
+        .params-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .param-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .param-group label {
+            font-size: 0.75rem;
+            color: #8b949e;
+        }
+
+        .param-group input {
+            width: 80px;
+            padding: 0.5rem;
+            background-color: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            color: #c9d1d9;
+            font-size: 0.875rem;
+        }
+
+        .param-group input:focus {
+            outline: none;
+            border-color: #58a6ff;
+        }
+
+        .btn {
+            padding: 0.625rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-primary {
+            background-color: #238636;
+            color: #ffffff;
+        }
+
+        .btn-primary:hover {
+            background-color: #2ea043;
+        }
+
+        .btn-primary.copied {
+            background-color: #58a6ff;
+        }
+
+        .preview-container {
+            margin-top: 1rem;
+        }
+
+        .preview-toggle {
+            background: none;
+            border: none;
+            color: #58a6ff;
+            font-size: 0.75rem;
+            cursor: pointer;
+            padding: 0;
+            margin-bottom: 0.5rem;
+        }
+
+        .preview-toggle:hover {
+            text-decoration: underline;
+        }
+
+        .preview-text {
+            background-color: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            padding: 0.75rem;
+            font-size: 0.75rem;
+            color: #8b949e;
+            max-height: 150px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            display: none;
+        }
+
+        .preview-text.visible {
+            display: block;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background-color: #238636;
+            color: #ffffff;
+            padding: 1rem 1.5rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            opacity: 0;
+            transform: translateY(1rem);
+            transition: opacity 0.3s, transform 0.3s;
+            z-index: 1000;
+        }
+
+        .toast.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .toast.error {
+            background-color: #da3633;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #161b22;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #30363d;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #484f58;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Prompt Copier</h1>
+        
+        <h2>Configurable Prompts</h2>
+        <div class="prompt-grid" id="configurable-prompts"></div>
+        
+        <h2>Static Prompts</h2>
+        <div class="prompt-grid" id="static-prompts"></div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        let promptConfig = null;
+
+        // Get auth header from current session
+        function getAuthHeader() {
+            // Browser handles basic auth automatically after initial login
+            return {};
+        }
+
+        async function fetchConfig() {
+            try {
+                const response = await fetch('/api/config');
+                if (!response.ok) throw new Error('Failed to fetch config');
+                promptConfig = await response.json();
+                renderPrompts();
+            } catch (error) {
+                showToast('Failed to load prompts: ' + error.message, true);
+            }
+        }
+
+        async function generateAndCopy(promptId, isStatic = false) {
+            const btn = document.querySelector(`[data-prompt-id="${promptId}"] .btn-primary`);
+            
+            try {
+                let params = {};
+                
+                if (!isStatic) {
+                    const card = document.querySelector(`[data-prompt-id="${promptId}"]`);
+                    const inputs = card.querySelectorAll('input[data-param]');
+                    inputs.forEach(input => {
+                        params[input.dataset.param] = parseInt(input.value) || input.value;
+                    });
+                }
+
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ prompt_id: promptId, params })
+                });
+
+                const data = await response.json();
+                
+                if (!data.success) {
+                    throw new Error(data.error);
+                }
+
+                await navigator.clipboard.writeText(data.prompt);
+                
+                btn.textContent = 'Copied!';
+                btn.classList.add('copied');
+                showToast('Prompt copied to clipboard!');
+                
+                // Update preview
+                const preview = document.querySelector(`[data-prompt-id="${promptId}"] .preview-text`);
+                if (preview) {
+                    preview.textContent = data.prompt;
+                }
+                
+                setTimeout(() => {
+                    btn.textContent = 'Copy';
+                    btn.classList.remove('copied');
+                }, 2000);
+
+            } catch (error) {
+                showToast('Error: ' + error.message, true);
+            }
+        }
+
+        function togglePreview(promptId) {
+            const preview = document.querySelector(`[data-prompt-id="${promptId}"] .preview-text`);
+            const toggle = document.querySelector(`[data-prompt-id="${promptId}"] .preview-toggle`);
+            
+            if (preview.classList.contains('visible')) {
+                preview.classList.remove('visible');
+                toggle.textContent = 'Show preview';
+            } else {
+                preview.classList.add('visible');
+                toggle.textContent = 'Hide preview';
+            }
+        }
+
+        function renderPrompts() {
+            // Render configurable prompts
+            const configurableContainer = document.getElementById('configurable-prompts');
+            configurableContainer.innerHTML = '';
+
+            for (const [id, prompt] of Object.entries(promptConfig.configurable)) {
+                const card = document.createElement('div');
+                card.className = 'prompt-card';
+                card.dataset.promptId = id;
+
+                const paramsHtml = prompt.params.map(param => `
+                    <div class="param-group">
+                        <label>${param.label}</label>
+                        <input type="number" 
+                               data-param="${param.name}" 
+                               value="${param.default}" 
+                               min="${param.min}" 
+                               max="${param.max}">
+                    </div>
+                `).join('');
+
+                card.innerHTML = `
+                    <h3>${prompt.name}</h3>
+                    <p class="description">${prompt.description}</p>
+                    <div class="params-container">${paramsHtml}</div>
+                    <button class="btn btn-primary" onclick="generateAndCopy('${id}')">Copy</button>
+                    <div class="preview-container">
+                        <button class="preview-toggle" onclick="togglePreview('${id}')">Show preview</button>
+                        <div class="preview-text"></div>
+                    </div>
+                `;
+
+                configurableContainer.appendChild(card);
+            }
+
+            // Render static prompts
+            const staticContainer = document.getElementById('static-prompts');
+            staticContainer.innerHTML = '';
+
+            for (const [id, prompt] of Object.entries(promptConfig.static)) {
+                const card = document.createElement('div');
+                card.className = 'prompt-card';
+                card.dataset.promptId = id;
+
+                card.innerHTML = `
+                    <h3>${prompt.name}</h3>
+                    <p class="description">${prompt.description}</p>
+                    <button class="btn btn-primary" onclick="generateAndCopy('${id}', true)">Copy</button>
+                    <div class="preview-container">
+                        <button class="preview-toggle" onclick="togglePreview('${id}')">Show preview</button>
+                        <div class="preview-text">${prompt.content}</div>
+                    </div>
+                `;
+
+                staticContainer.appendChild(card);
+            }
+        }
+
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast visible' + (isError ? ' error' : '');
+            
+            setTimeout(() => {
+                toast.classList.remove('visible');
+            }, 3000);
+        }
+
+        // Initialize
+        fetchConfig();
+    </script>
+</body>
+</html>
