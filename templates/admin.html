@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Prompt Copier</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background-color: #0d1117;
+            color: #c9d1d9;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            color: #58a6ff;
+            font-weight: 600;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .back-link {
+            color: #8b949e;
+            text-decoration: none;
+            font-size: 0.875rem;
+            padding: 0.5rem 1rem;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .back-link:hover {
+            color: #58a6ff;
+            border-color: #58a6ff;
+        }
+
+        .btn {
+            padding: 0.625rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background-color: #238636;
+            color: #ffffff;
+        }
+
+        .btn-primary:hover {
+            background-color: #2ea043;
+        }
+
+        .btn-secondary {
+            background-color: #21262d;
+            color: #c9d1d9;
+            border: 1px solid #30363d;
+        }
+
+        .btn-secondary:hover {
+            background-color: #30363d;
+        }
+
+        .btn-danger {
+            background-color: #da3633;
+            color: #ffffff;
+        }
+
+        .btn-danger:hover {
+            background-color: #f85149;
+        }
+
+        .btn-sm {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.75rem;
+        }
+
+        /* Table */
+        .table-container {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #30363d;
+        }
+
+        th {
+            background-color: #21262d;
+            color: #8b949e;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background-color: #1c2128;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-active {
+            background-color: rgba(35, 134, 54, 0.2);
+            color: #3fb950;
+        }
+
+        .status-inactive {
+            background-color: rgba(139, 148, 158, 0.2);
+            color: #8b949e;
+        }
+
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.visible {
+            display: flex;
+        }
+
+        .modal {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 700px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #30363d;
+        }
+
+        .modal-header h2 {
+            color: #f0f6fc;
+            font-size: 1.25rem;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #8b949e;
+            font-size: 1.5rem;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: #c9d1d9;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #c9d1d9;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: #c9d1d9;
+            font-size: 0.875rem;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            min-height: 150px;
+            resize: vertical;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #58a6ff;
+        }
+
+        .form-hint {
+            margin-top: 0.375rem;
+            font-size: 0.75rem;
+            color: #8b949e;
+        }
+
+        /* Params Editor */
+        .params-editor {
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 1rem;
+            background-color: #0d1117;
+        }
+
+        .params-list {
+            margin-bottom: 1rem;
+        }
+
+        .param-item {
+            display: grid;
+            grid-template-columns: 1fr 1fr 80px 80px auto;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            align-items: center;
+        }
+
+        .param-item input {
+            padding: 0.5rem;
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            color: #c9d1d9;
+            font-size: 0.75rem;
+        }
+
+        .param-item input:focus {
+            outline: none;
+            border-color: #58a6ff;
+        }
+
+        .param-remove {
+            background: none;
+            border: none;
+            color: #da3633;
+            cursor: pointer;
+            font-size: 1.25rem;
+            padding: 0.25rem;
+        }
+
+        .param-remove:hover {
+            color: #f85149;
+        }
+
+        .add-param-btn {
+            width: 100%;
+            padding: 0.5rem;
+            background-color: #21262d;
+            border: 1px dashed #30363d;
+            border-radius: 4px;
+            color: #8b949e;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+
+        .add-param-btn:hover {
+            border-color: #58a6ff;
+            color: #58a6ff;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            padding: 1rem 1.5rem;
+            border-top: 1px solid #30363d;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background-color: #238636;
+            color: #ffffff;
+            padding: 1rem 1.5rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            opacity: 0;
+            transform: translateY(1rem);
+            transition: opacity 0.3s, transform 0.3s;
+            z-index: 1001;
+        }
+
+        .toast.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .toast.error {
+            background-color: #da3633;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #8b949e;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #161b22;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #30363d;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #484f58;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚙️ Admin</h1>
+            <div class="header-actions">
+                <a href="/" class="back-link">← Back to Prompts</a>
+                <button class="btn btn-primary" onclick="openCreateModal()">+ New Prompt</button>
+            </div>
+        </header>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Slug</th>
+                        <th>Params</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="prompts-table">
+                </tbody>
+            </table>
+            <div class="empty-state" id="empty-state" style="display: none;">
+                No prompts yet. Create your first one!
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modal-title">New Prompt</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="prompt-form">
+                    <input type="hidden" id="prompt-id">
+                    
+                    <div class="form-group">
+                        <label for="prompt-name">Name</label>
+                        <input type="text" id="prompt-name" required placeholder="e.g., Sequential Thinking">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="prompt-slug">Slug</label>
+                        <input type="text" id="prompt-slug" required placeholder="e.g., sequential-thinking" pattern="[a-z0-9_-]+">
+                        <div class="form-hint">Lowercase letters, numbers, hyphens, underscores only</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="prompt-description">Description</label>
+                        <input type="text" id="prompt-description" placeholder="Brief description of this prompt">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="prompt-template">Template</label>
+                        <textarea id="prompt-template" required placeholder="Your prompt text here. Use {param_name} for dynamic values."></textarea>
+                        <div class="form-hint">Use {param_name} syntax for dynamic parameters, e.g., {phase_1_rounds}</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Parameters</label>
+                        <div class="params-editor">
+                            <div class="params-list" id="params-list"></div>
+                            <button type="button" class="add-param-btn" onclick="addParam()">+ Add Parameter</button>
+                        </div>
+                        <div class="form-hint">Define parameters that users can configure</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="savePrompt()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        let prompts = [];
+        let editingId = null;
+
+        async function fetchPrompts() {
+            try {
+                const response = await fetch('/api/prompts');
+                if (!response.ok) throw new Error('Failed to fetch');
+                prompts = await response.json();
+                renderTable();
+            } catch (error) {
+                showToast('Failed to load prompts: ' + error.message, true);
+            }
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('prompts-table');
+            const emptyState = document.getElementById('empty-state');
+            
+            if (prompts.length === 0) {
+                tbody.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+            
+            emptyState.style.display = 'none';
+            
+            tbody.innerHTML = prompts.map(p => `
+                <tr>
+                    <td>${escapeHtml(p.name)}</td>
+                    <td><code>${escapeHtml(p.slug)}</code></td>
+                    <td>${p.params ? p.params.length : 0}</td>
+                    <td>
+                        <span class="status-badge ${p.is_active ? 'status-active' : 'status-inactive'}">
+                            ${p.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="actions">
+                            <button class="btn btn-secondary btn-sm" onclick="editPrompt(${p.id})">Edit</button>
+                            <button class="btn btn-secondary btn-sm" onclick="toggleActive(${p.id}, ${!p.is_active})">
+                                ${p.is_active ? 'Disable' : 'Enable'}
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="deletePrompt(${p.id})">Delete</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function openCreateModal() {
+            editingId = null;
+            document.getElementById('modal-title').textContent = 'New Prompt';
+            document.getElementById('prompt-form').reset();
+            document.getElementById('params-list').innerHTML = '';
+            document.getElementById('modal').classList.add('visible');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('visible');
+            editingId = null;
+        }
+
+        async function editPrompt(id) {
+            const prompt = prompts.find(p => p.id === id);
+            if (!prompt) return;
+            
+            editingId = id;
+            document.getElementById('modal-title').textContent = 'Edit Prompt';
+            document.getElementById('prompt-id').value = id;
+            document.getElementById('prompt-name').value = prompt.name;
+            document.getElementById('prompt-slug').value = prompt.slug;
+            document.getElementById('prompt-description').value = prompt.description || '';
+            document.getElementById('prompt-template').value = prompt.template;
+            
+            // Render params
+            const paramsList = document.getElementById('params-list');
+            paramsList.innerHTML = '';
+            if (prompt.params) {
+                prompt.params.forEach(param => addParam(param));
+            }
+            
+            document.getElementById('modal').classList.add('visible');
+        }
+
+        function addParam(param = null) {
+            const list = document.getElementById('params-list');
+            const div = document.createElement('div');
+            div.className = 'param-item';
+            div.innerHTML = `
+                <input type="text" placeholder="name" class="param-name" value="${param?.name || ''}">
+                <input type="text" placeholder="label" class="param-label" value="${param?.label || ''}">
+                <input type="number" placeholder="default" class="param-default" value="${param?.default ?? ''}">
+                <input type="number" placeholder="min" class="param-min" value="${param?.min ?? ''}">
+                <button type="button" class="param-remove" onclick="this.parentElement.remove()">×</button>
+            `;
+            list.appendChild(div);
+        }
+
+        function getParamsFromForm() {
+            const items = document.querySelectorAll('.param-item');
+            const params = [];
+            items.forEach(item => {
+                const name = item.querySelector('.param-name').value.trim();
+                if (name) {
+                    const param = {
+                        name: name,
+                        label: item.querySelector('.param-label').value.trim() || name,
+                        type: 'number',
+                        default: parseInt(item.querySelector('.param-default').value) || 0,
+                    };
+                    const min = item.querySelector('.param-min').value;
+                    if (min !== '') param.min = parseInt(min);
+                    params.push(param);
+                }
+            });
+            return params;
+        }
+
+        async function savePrompt() {
+            const data = {
+                name: document.getElementById('prompt-name').value,
+                slug: document.getElementById('prompt-slug').value,
+                description: document.getElementById('prompt-description').value,
+                template: document.getElementById('prompt-template').value,
+                params: getParamsFromForm()
+            };
+
+            try {
+                const url = editingId ? `/api/prompts/${editingId}` : '/api/prompts';
+                const method = editingId ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+                
+                if (!result.success) throw new Error(result.error);
+                
+                showToast(editingId ? 'Prompt updated!' : 'Prompt created!');
+                closeModal();
+                fetchPrompts();
+            } catch (error) {
+                showToast('Error: ' + error.message, true);
+            }
+        }
+
+        async function toggleActive(id, active) {
+            try {
+                const response = await fetch(`/api/prompts/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_active: active })
+                });
+                
+                const result = await response.json();
+                if (!result.success) throw new Error(result.error);
+                
+                showToast(active ? 'Prompt enabled!' : 'Prompt disabled!');
+                fetchPrompts();
+            } catch (error) {
+                showToast('Error: ' + error.message, true);
+            }
+        }
+
+        async function deletePrompt(id) {
+            if (!confirm('Are you sure you want to delete this prompt?')) return;
+            
+            try {
+                const response = await fetch(`/api/prompts/${id}`, { method: 'DELETE' });
+                const result = await response.json();
+                
+                if (!result.success) throw new Error(result.error);
+                
+                showToast('Prompt deleted!');
+                fetchPrompts();
+            } catch (error) {
+                showToast('Error: ' + error.message, true);
+            }
+        }
+
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast visible' + (isError ? ' error' : '');
+            setTimeout(() => toast.classList.remove('visible'), 3000);
+        }
+
+        // Close modal on escape key
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+
+        // Close modal on overlay click
+        document.getElementById('modal').addEventListener('click', e => {
+            if (e.target.classList.contains('modal-overlay')) closeModal();
+        });
+
+        fetchPrompts();
+    </script>
+</body>
+</html>

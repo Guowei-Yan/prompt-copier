@@ -24,19 +24,42 @@
             margin: 0 auto;
         }
 
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
         h1 {
             color: #58a6ff;
-            margin-bottom: 2rem;
             font-weight: 600;
         }
 
-        h2 {
+        .admin-link {
             color: #8b949e;
+            text-decoration: none;
             font-size: 0.875rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
+            padding: 0.5rem 1rem;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .admin-link:hover {
+            color: #58a6ff;
+            border-color: #58a6ff;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #8b949e;
+        }
+
+        .empty-state h2 {
             margin-bottom: 1rem;
-            margin-top: 2rem;
+            color: #c9d1d9;
         }
 
         .prompt-grid {
@@ -88,7 +111,7 @@
         }
 
         .param-group input {
-            width: 80px;
+            width: 100px;
             padding: 0.5rem;
             background-color: #0d1117;
             border: 1px solid #30363d;
@@ -185,7 +208,6 @@
             background-color: #da3633;
         }
 
-        /* Scrollbar styling */
         ::-webkit-scrollbar {
             width: 8px;
             height: 8px;
@@ -207,25 +229,22 @@
 </head>
 <body>
     <div class="container">
-        <h1>Prompt Copier</h1>
+        <header>
+            <h1>Prompt Copier</h1>
+            <a href="/admin" class="admin-link">⚙️ Admin</a>
+        </header>
         
-        <h2>Configurable Prompts</h2>
-        <div class="prompt-grid" id="configurable-prompts"></div>
-        
-        <h2>Static Prompts</h2>
-        <div class="prompt-grid" id="static-prompts"></div>
+        <div class="prompt-grid" id="prompts"></div>
+        <div class="empty-state" id="empty-state" style="display: none;">
+            <h2>No prompts yet</h2>
+            <p>Go to <a href="/admin" style="color: #58a6ff;">Admin</a> to create your first prompt.</p>
+        </div>
     </div>
 
     <div class="toast" id="toast"></div>
 
     <script>
         let promptConfig = null;
-
-        // Get auth header from current session
-        function getAuthHeader() {
-            // Browser handles basic auth automatically after initial login
-            return {};
-        }
 
         async function fetchConfig() {
             try {
@@ -238,33 +257,26 @@
             }
         }
 
-        async function generateAndCopy(promptId, isStatic = false) {
-            const btn = document.querySelector(`[data-prompt-id="${promptId}"] .btn-primary`);
+        async function generateAndCopy(slug) {
+            const btn = document.querySelector(`[data-prompt-slug="${slug}"] .btn-primary`);
             
             try {
                 let params = {};
-                
-                if (!isStatic) {
-                    const card = document.querySelector(`[data-prompt-id="${promptId}"]`);
-                    const inputs = card.querySelectorAll('input[data-param]');
-                    inputs.forEach(input => {
-                        params[input.dataset.param] = parseInt(input.value) || input.value;
-                    });
-                }
+                const card = document.querySelector(`[data-prompt-slug="${slug}"]`);
+                const inputs = card.querySelectorAll('input[data-param]');
+                inputs.forEach(input => {
+                    params[input.dataset.param] = parseInt(input.value) || input.value;
+                });
 
                 const response = await fetch('/api/generate', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ prompt_id: promptId, params })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt_id: slug, params })
                 });
 
                 const data = await response.json();
                 
-                if (!data.success) {
-                    throw new Error(data.error);
-                }
+                if (!data.success) throw new Error(data.error);
 
                 await navigator.clipboard.writeText(data.prompt);
                 
@@ -272,11 +284,8 @@
                 btn.classList.add('copied');
                 showToast('Prompt copied to clipboard!');
                 
-                // Update preview
-                const preview = document.querySelector(`[data-prompt-id="${promptId}"] .preview-text`);
-                if (preview) {
-                    preview.textContent = data.prompt;
-                }
+                const preview = document.querySelector(`[data-prompt-slug="${slug}"] .preview-text`);
+                if (preview) preview.textContent = data.prompt;
                 
                 setTimeout(() => {
                     btn.textContent = 'Copy';
@@ -288,9 +297,9 @@
             }
         }
 
-        function togglePreview(promptId) {
-            const preview = document.querySelector(`[data-prompt-id="${promptId}"] .preview-text`);
-            const toggle = document.querySelector(`[data-prompt-id="${promptId}"] .preview-toggle`);
+        function togglePreview(slug) {
+            const preview = document.querySelector(`[data-prompt-slug="${slug}"] .preview-text`);
+            const toggle = document.querySelector(`[data-prompt-slug="${slug}"] .preview-toggle`);
             
             if (preview.classList.contains('visible')) {
                 preview.classList.remove('visible');
@@ -302,60 +311,52 @@
         }
 
         function renderPrompts() {
-            // Render configurable prompts
-            const configurableContainer = document.getElementById('configurable-prompts');
-            configurableContainer.innerHTML = '';
+            const container = document.getElementById('prompts');
+            const emptyState = document.getElementById('empty-state');
+            container.innerHTML = '';
 
-            for (const [id, prompt] of Object.entries(promptConfig.configurable)) {
+            const slugs = Object.keys(promptConfig);
+            
+            if (slugs.length === 0) {
+                emptyState.style.display = 'block';
+                return;
+            }
+            
+            emptyState.style.display = 'none';
+
+            for (const slug of slugs) {
+                const prompt = promptConfig[slug];
                 const card = document.createElement('div');
                 card.className = 'prompt-card';
-                card.dataset.promptId = id;
+                card.dataset.promptSlug = slug;
 
-                const paramsHtml = prompt.params.map(param => `
-                    <div class="param-group">
-                        <label>${param.label}</label>
-                        <input type="number" 
-                               data-param="${param.name}" 
-                               value="${param.default}" 
-                               min="${param.min}" 
-                               max="${param.max}">
-                    </div>
-                `).join('');
+                let paramsHtml = '';
+                if (prompt.params && prompt.params.length > 0) {
+                    paramsHtml = '<div class="params-container">' + 
+                        prompt.params.map(param => `
+                            <div class="param-group">
+                                <label>${param.label || param.name}</label>
+                                <input type="${param.type || 'number'}" 
+                                       data-param="${param.name}" 
+                                       value="${param.default || ''}" 
+                                       ${param.min !== undefined ? `min="${param.min}"` : ''}
+                                       ${param.max !== undefined ? `max="${param.max}"` : ''}>
+                            </div>
+                        `).join('') + '</div>';
+                }
 
                 card.innerHTML = `
                     <h3>${prompt.name}</h3>
-                    <p class="description">${prompt.description}</p>
-                    <div class="params-container">${paramsHtml}</div>
-                    <button class="btn btn-primary" onclick="generateAndCopy('${id}')">Copy</button>
+                    <p class="description">${prompt.description || ''}</p>
+                    ${paramsHtml}
+                    <button class="btn btn-primary" onclick="generateAndCopy('${slug}')">Copy</button>
                     <div class="preview-container">
-                        <button class="preview-toggle" onclick="togglePreview('${id}')">Show preview</button>
+                        <button class="preview-toggle" onclick="togglePreview('${slug}')">Show preview</button>
                         <div class="preview-text"></div>
                     </div>
                 `;
 
-                configurableContainer.appendChild(card);
-            }
-
-            // Render static prompts
-            const staticContainer = document.getElementById('static-prompts');
-            staticContainer.innerHTML = '';
-
-            for (const [id, prompt] of Object.entries(promptConfig.static)) {
-                const card = document.createElement('div');
-                card.className = 'prompt-card';
-                card.dataset.promptId = id;
-
-                card.innerHTML = `
-                    <h3>${prompt.name}</h3>
-                    <p class="description">${prompt.description}</p>
-                    <button class="btn btn-primary" onclick="generateAndCopy('${id}', true)">Copy</button>
-                    <div class="preview-container">
-                        <button class="preview-toggle" onclick="togglePreview('${id}')">Show preview</button>
-                        <div class="preview-text">${prompt.content}</div>
-                    </div>
-                `;
-
-                staticContainer.appendChild(card);
+                container.appendChild(card);
             }
         }
 
@@ -363,13 +364,9 @@
             const toast = document.getElementById('toast');
             toast.textContent = message;
             toast.className = 'toast visible' + (isError ? ' error' : '');
-            
-            setTimeout(() => {
-                toast.classList.remove('visible');
-            }, 3000);
+            setTimeout(() => toast.classList.remove('visible'), 3000);
         }
 
-        // Initialize
         fetchConfig();
     </script>
 </body>
