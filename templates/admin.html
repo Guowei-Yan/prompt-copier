@@ -17,6 +17,7 @@
             color: #c9d1d9;
             min-height: 100vh;
             padding: 2rem;
+            overflow-x: hidden;
         }
 
         .container {
@@ -41,6 +42,7 @@
         .header-actions {
             display: flex;
             gap: 1rem;
+            flex-wrap: wrap;
         }
 
         .back-link {
@@ -136,35 +138,6 @@
             background-color: #1c2128;
         }
 
-        @media (max-width: 768px) {
-            table, thead, tbody, th, td, tr { display: block; }
-            thead tr { position: absolute; top: -9999px; left: -9999px; }
-            tr { border: 1px solid #30363d; margin-bottom: 1rem; }
-            td {
-                border: none;
-                border-bottom: 1px solid #21262d;
-                position: relative;
-                padding-left: 45%;
-                min-height: 2.5rem;
-                display: flex;
-                align-items: center;
-                flex-wrap: wrap;
-            }
-            td::before {
-                position: absolute;
-                left: 1rem;
-                width: 40%;
-                padding-right: 10px;
-                white-space: nowrap;
-                content: attr(data-label);
-                color: #8b949e;
-                font-weight: bold;
-                font-size: 0.7rem;
-                text-transform: uppercase;
-            }
-            .actions { width: 100%; justify-content: flex-start; }
-        }
-
         .status-badge {
             display: inline-block;
             padding: 0.25rem 0.5rem;
@@ -186,6 +159,7 @@
         .actions {
             display: flex;
             gap: 0.5rem;
+            flex-wrap: wrap;
         }
 
         /* Modal */
@@ -311,11 +285,6 @@
             align-items: center;
         }
 
-        @media (max-width: 600px) {
-            .param-item { grid-template-columns: 1fr 1fr; }
-            .param-remove { grid-column: span 2; text-align: right; }
-        }
-
         .param-item input, .param-item select {
             padding: 0.5rem;
             background-color: #161b22;
@@ -366,6 +335,7 @@
             transform: translateY(1rem);
             transition: opacity 0.3s, transform 0.3s;
             z-index: 1001;
+            max-width: calc(100% - 4rem);
         }
 
         .toast.visible {
@@ -377,6 +347,195 @@
             text-align: center;
             padding: 3rem;
             color: #8b949e;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1.5rem;
+            }
+
+            table, thead, tbody, th, td, tr {
+                display: block;
+            }
+
+            thead tr {
+                position: absolute;
+                top: -9999px;
+                left: -9999px;
+            }
+
+            tr {
+                border: 1px solid #30363d;
+                margin-bottom: 1rem;
+                border-radius: 6px;
+                overflow: hidden;
+            }
+
+            td {
+                border: none;
+                border-bottom: 1px solid #21262d;
+                position: relative;
+                padding-left: 45%;
+                min-height: 2.5rem;
+                display: flex;
+                align-items: center;
+                flex-wrap: wrap;
+            }
+
+            td::before {
+                position: absolute;
+                left: 1rem;
+                width: 40%;
+                padding-right: 10px;
+                white-space: nowrap;
+                content: attr(data-label);
+                color: #8b949e;
+                font-weight: bold;
+                font-size: 0.7rem;
+                text-transform: uppercase;
+            }
+
+            td:last-child {
+                border-bottom: none;
+            }
+
+            .actions {
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            .param-item {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .param-remove {
+                grid-column: span 2;
+                text-align: right;
+            }
+
+            .toast {
+                right: 1rem;
+                max-width: calc(100% - 2rem);
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 1rem;
+            }
+
+            header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .header-actions {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .back-link,
+            .btn-primary {
+                width: 100%;
+                text-align: center;
+            }
+
+            .modal {
+                margin-top: 0.5rem;
+                margin-bottom: 0.5rem;
+            }
+
+            .modal-header {
+                padding: 1rem;
+            }
+
+            .modal-body {
+                padding: 1rem;
+            }
+
+            .modal-footer {
+                padding: 1rem;
+                flex-direction: column;
+            }
+
+            .modal-footer .btn {
+                width: 100%;
+            }
+
+            .param-item {
+                grid-template-columns: 1fr;
+                gap: 0.5rem;
+            }
+
+            .param-remove {
+                grid-column: 1;
+                text-align: center;
+                padding: 0.5rem;
+            }
+
+            td {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+
+            td::before {
+                position: static;
+                width: 100%;
+                display: block;
+                margin-bottom: 0.25rem;
+            }
+
+            .actions {
+                margin-top: 0.5rem;
+            }
+
+            .toast {
+                bottom: 1rem;
+                left: 1rem;
+                right: 1rem;
+                max-width: none;
+            }
+
+            .empty-state {
+                padding: 2rem 1rem;
+            }
+        }
+
+        /* Very small phones */
+        @media (max-width: 360px) {
+            body {
+                padding: 0.75rem;
+            }
+
+            .modal-header h2 {
+                font-size: 1.125rem;
+            }
+
+            .btn {
+                padding: 0.5rem 0.75rem;
+            }
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #161b22;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #30363d;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #484f58;
         }
     </style>
 </head>

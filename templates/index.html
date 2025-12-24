@@ -17,6 +17,7 @@
             color: #c9d1d9;
             min-height: 100vh;
             padding: 2rem;
+            overflow-x: hidden;
         }
 
         .container {
@@ -84,12 +85,14 @@
             color: #f0f6fc;
             font-size: 1.125rem;
             margin-bottom: 0.5rem;
+            word-wrap: break-word;
         }
 
         .prompt-card .description {
             color: #8b949e;
             font-size: 0.875rem;
             margin-bottom: 1rem;
+            word-wrap: break-word;
         }
 
         .params-container {
@@ -203,20 +206,93 @@
             font-size: 0.875rem;
             transition: transform 0.3s;
             z-index: 1000;
+            max-width: calc(100% - 2rem);
         }
 
         .toast.visible {
-            transform: translateY(0);
+            transform: translateX(-50%) translateY(0);
         }
 
         .toast.error {
             background-color: #da3633;
         }
 
-        @media (max-width: 600px) {
-            body { padding: 1rem; }
-            header { flex-direction: column; align-items: flex-start; }
-            .admin-link { margin-top: 1rem; }
+        @media (max-width: 768px) {
+            body {
+                padding: 1.5rem;
+            }
+
+            .prompt-grid {
+                gap: 1.25rem;
+            }
+
+            .prompt-card {
+                padding: 1.25rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 1rem;
+            }
+
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .admin-link {
+                width: 100%;
+                text-align: center;
+            }
+
+            .prompt-grid {
+                gap: 1rem;
+            }
+
+            .prompt-card {
+                padding: 1rem;
+            }
+
+            .prompt-card h3 {
+                font-size: 1rem;
+            }
+
+            .empty-state {
+                padding: 2rem 1rem;
+            }
+
+            .toast {
+                left: 1rem;
+                right: 1rem;
+                transform: translateY(100px);
+                max-width: none;
+                border-radius: 8px;
+            }
+
+            .toast.visible {
+                transform: translateY(0);
+            }
+        }
+
+        /* Very small phones */
+        @media (max-width: 360px) {
+            body {
+                padding: 0.75rem;
+            }
+
+            .prompt-card {
+                padding: 0.875rem;
+            }
+
+            .btn {
+                padding: 0.5rem 0.75rem;
+            }
         }
 
         ::-webkit-scrollbar {
