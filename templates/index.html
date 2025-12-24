@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Prompt Copier</title>
     <style>
+        :root {
+            --bg-main: #0d1117;
+            --bg-card: #161b22;
+            --border: #30363d;
+            --text-main: #c9d1d9;
+            --text-dim: #8b949e;
+            --blue: #58a6ff;
+            --green: #238636;
+            --green-hover: #2ea043;
+            --error: #da3633;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -13,10 +25,11 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background-color: #0d1117;
-            color: #c9d1d9;
+            background-color: var(--bg-main);
+            color: var(--text-main);
             min-height: 100vh;
-            padding: 2rem;
+            padding: 1.5rem;
+            line-height: 1.5;
         }
 
         .container {
@@ -29,55 +42,48 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
         }
 
         h1 {
-            color: #58a6ff;
+            color: var(--blue);
             font-weight: 600;
+            font-size: 1.5rem;
         }
 
         .admin-link {
-            color: #8b949e;
+            color: var(--text-dim);
             text-decoration: none;
             font-size: 0.875rem;
             padding: 0.5rem 1rem;
-            border: 1px solid #30363d;
+            border: 1px solid var(--border);
             border-radius: 6px;
             transition: all 0.2s;
         }
 
         .admin-link:hover {
-            color: #58a6ff;
-            border-color: #58a6ff;
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 4rem 2rem;
-            color: #8b949e;
-        }
-
-        .empty-state h2 {
-            margin-bottom: 1rem;
-            color: #c9d1d9;
+            color: var(--blue);
+            border-color: var(--blue);
         }
 
         .prompt-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 1.5rem;
+            display: grid;grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
+            gap: 1.25rem;
         }
 
         .prompt-card {
-            background-color: #161b22;
-            border: 1px solid #30363d;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
             border-radius: 8px;
             padding: 1.5rem;
             transition: border-color 0.2s;
+            display: flex;
+            flex-direction: column;
         }
 
         .prompt-card:hover {
-            border-color: #58a6ff;
+            border-color: var(--blue);
         }
 
         .prompt-card h3 {
@@ -87,75 +93,87 @@
         }
 
         .prompt-card .description {
-            color: #8b949e;
+            color: var(--text-dim);
             font-size: 0.875rem;
-            margin-bottom: 1rem;
+            margin-bottom: 1.25rem;
         }
 
         .params-container {
             display: flex;
-            flex-wrap: wrap;
+            flex-direction: column;
             gap: 0.75rem;
-            margin-bottom: 1rem;
+            margin-bottom: 1.25rem;
         }
 
         .param-group {
             display: flex;
             flex-direction: column;
-            gap: 0.25rem;
+            gap: 0.35rem;
         }
 
         .param-group label {
             font-size: 0.75rem;
-            color: #8b949e;
+            color: var(--text-dim);
+            font-weight: 600;
         }
 
-        .param-group input {
-            width: 100px;
-            padding: 0.5rem;
-            background-color: #0d1117;
-            border: 1px solid #30363d;
+        .param-group input, 
+        .param-group textarea {
+            width: 100%;
+            padding: 0.6rem;
+            background-color: var(--bg-main);
+            border: 1px solid var(--border);
             border-radius: 4px;
-            color: #c9d1d9;
-            font-size: 0.875rem;
+            color: var(--text-main);
+            font-size: 0.9rem;
+            font-family: inherit;
         }
 
-        .param-group input:focus {
+        .param-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .param-group input:focus,
+        .param-group textarea:focus {
             outline: none;
-            border-color: #58a6ff;
+            border-color: var(--blue);
         }
 
         .btn {
-            padding: 0.625rem 1rem;
+            padding: 0.75rem 1rem;
             border: none;
             border-radius: 6px;
             font-size: 0.875rem;
-            font-weight: 500;
+            font-weight: 600;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: 0.2s;
+            width: 100%;
         }
 
         .btn-primary {
-            background-color: #238636;
+            background-color: var(--green);
             color: #ffffff;
         }
 
         .btn-primary:hover {
-            background-color: #2ea043;
+            background-color: var(--green-hover);
         }
 
         .btn-primary.copied {
-            background-color: #58a6ff;
+            background-color: var(--blue);
         }
 
         .preview-container {
-            margin-top: 1rem;
+            margin-top: 1.25rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
         }
 
         .preview-toggle {
             background: none;
             border: none;
-            color: #58a6ff;
+            color: var(--blue);
             font-size: 0.75rem;
             cursor: pointer;
             padding: 0;
@@ -167,13 +185,13 @@
         }
 
         .preview-text {
-            background-color: #0d1117;
-            border: 1px solid #30363d;
+            background-color: #000;
+            border: 1px solid var(--border);
             border-radius: 4px;
             padding: 0.75rem;
             font-size: 0.75rem;
-            color: #8b949e;
-            max-height: 150px;
+            color: var(--text-dim);
+            max-height: 200px;
             overflow-y: auto;
             white-space: pre-wrap;
             word-break: break-word;
@@ -187,57 +205,58 @@
         .toast {
             position: fixed;
             bottom: 2rem;
-            right: 2rem;
-            background-color: #238636;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background-color: var(--green);
             color: #ffffff;
-            padding: 1rem 1.5rem;
-            border-radius: 6px;
+            padding: 0.75rem 1.5rem;
+            border-radius: 50px;
             font-size: 0.875rem;
-            opacity: 0;
-            transform: translateY(1rem);
-            transition: opacity 0.3s, transform 0.3s;
+            font-weight: 500;
+            transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
             z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
 
         .toast.visible {
-            opacity: 1;
-            transform: translateY(0);
+            transform: translateX(-50%) translateY(0);
         }
 
         .toast.error {
-            background-color: #da3633;
+            background-color: var(--error);
         }
 
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-dim);
+            grid-column: 1 / -1;
         }
 
-        ::-webkit-scrollbar-track {
-            background: #161b22;
+        @media (max-width: 480px) {
+            body { padding: 1rem; }
+            header { margin-bottom: 1.5rem; }
+            h1 { font-size: 1.25rem; }
+            .prompt-card { padding: 1.25rem; }
         }
 
-        ::-webkit-scrollbar-thumb {
-            background: #30363d;
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: #484f58;
-        }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-card); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #484f58; }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
             <h1>Prompt Copier</h1>
-            <a href="/admin" class="admin-link">⚙️ Admin</a>
+            <a href="/admin" class="admin-link">⚙️ Admin Settings</a>
         </header>
-        
+
         <div class="prompt-grid" id="prompts"></div>
         <div class="empty-state" id="empty-state" style="display: none;">
-            <h2>No prompts yet</h2>
-            <p>Go to <a href="/admin" style="color: #58a6ff;">Admin</a> to create your first prompt.</p>
+            <h2>No prompts available</h2>
+            <p>Go to <a href="/admin" style="color: var(--blue);">Admin</a> to create your first prompt.</p>
         </div>
     </div>
 
@@ -258,14 +277,14 @@
         }
 
         async function generateAndCopy(slug) {
-            const btn = document.querySelector(`[data-prompt-slug="${slug}"] .btn-primary`);
-            
+            const card = document.querySelector(`[data-prompt-slug="${slug}"]`);
+            const btn = card.querySelector('.btn-primary');
+
             try {
                 let params = {};
-                const card = document.querySelector(`[data-prompt-slug="${slug}"]`);
-                const inputs = card.querySelectorAll('input[data-param]');
+                const inputs = card.querySelectorAll('[data-param]');
                 inputs.forEach(input => {
-                    params[input.dataset.param] = parseInt(input.value) || input.value;
+                    params[input.dataset.param] = input.value;
                 });
 
                 const response = await fetch('/api/generate', {
@@ -275,20 +294,19 @@
                 });
 
                 const data = await response.json();
-                
                 if (!data.success) throw new Error(data.error);
 
                 await navigator.clipboard.writeText(data.prompt);
-                
+
                 btn.textContent = 'Copied!';
                 btn.classList.add('copied');
                 showToast('Prompt copied to clipboard!');
-                
-                const preview = document.querySelector(`[data-prompt-slug="${slug}"] .preview-text`);
+
+                const preview = document.getElementById(`preview-${slug}`);
                 if (preview) preview.textContent = data.prompt;
-                
+
                 setTimeout(() => {
-                    btn.textContent = 'Copy';
+                    btn.textContent = 'Copy Prompt';
                     btn.classList.remove('copied');
                 }, 2000);
 
@@ -298,9 +316,9 @@
         }
 
         function togglePreview(slug) {
-            const preview = document.querySelector(`[data-prompt-slug="${slug}"] .preview-text`);
-            const toggle = document.querySelector(`[data-prompt-slug="${slug}"] .preview-toggle`);
-            
+            const preview = document.getElementById(`preview-${slug}`);
+            const toggle = document.getElementById(`toggle-${slug}`);
+
             if (preview.classList.contains('visible')) {
                 preview.classList.remove('visible');
                 toggle.textContent = 'Show preview';
@@ -316,12 +334,11 @@
             container.innerHTML = '';
 
             const slugs = Object.keys(promptConfig);
-            
             if (slugs.length === 0) {
                 emptyState.style.display = 'block';
                 return;
             }
-            
+
             emptyState.style.display = 'none';
 
             for (const slug of slugs) {
@@ -332,27 +349,32 @@
 
                 let paramsHtml = '';
                 if (prompt.params && prompt.params.length > 0) {
-                    paramsHtml = '<div class="params-container">' + 
-                        prompt.params.map(param => `
-                            <div class="param-group">
-                                <label>${param.label || param.name}</label>
-                                <input type="${param.type || 'number'}" 
-                                       data-param="${param.name}" 
-                                       value="${param.default || ''}" 
-                                       ${param.min !== undefined ? `min="${param.min}"` : ''}
-                                       ${param.max !== undefined ? `max="${param.max}"` : ''}>
-                            </div>
-                        `).join('') + '</div>';
+                    paramsHtml = '<div class="params-container">' +
+                        prompt.params.map(param => {
+                            const inputId = `param-${slug}-${param.name}`;
+                            const common = `data-param="${param.name}" id="${inputId}"`;
+                            const val = param.default || '';
+                            
+                            return `
+                                <div class="param-group">
+                                    <label for="${inputId}">${param.label || param.name}</label>
+                                    ${param.type === 'textarea' 
+                                        ? `<textarea ${common}>${val}</textarea>`
+                                        : `<input type="${param.type || 'text'}" ${common} value="${val}">`
+                                    }
+                                </div>
+                            `;
+                        }).join('') + '</div>';
                 }
 
                 card.innerHTML = `
                     <h3>${prompt.name}</h3>
                     <p class="description">${prompt.description || ''}</p>
                     ${paramsHtml}
-                    <button class="btn btn-primary" onclick="generateAndCopy('${slug}')">Copy</button>
+                    <button class="btn btn-primary" onclick="generateAndCopy('${slug}')">Copy Prompt</button>
                     <div class="preview-container">
-                        <button class="preview-toggle" onclick="togglePreview('${slug}')">Show preview</button>
-                        <div class="preview-text"></div>
+                        <button class="preview-toggle" id="toggle-${slug}" onclick="togglePreview('${slug}')">Show preview</button>
+                        <div class="preview-text" id="preview-${slug}"></div>
                     </div>
                 `;
 

@@ -16,7 +16,7 @@
             background-color: #0d1117;
             color: #c9d1d9;
             min-height: 100vh;
-            padding: 2rem;
+            padding: 1.5rem;
         }
 
         .container {
@@ -29,6 +29,8 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
         }
 
         h1 {
@@ -99,17 +101,18 @@
             font-size: 0.75rem;
         }
 
-        /* Table */
+        /* Responsive Table Wrapper */
         .table-container {
             background-color: #161b22;
             border: 1px solid #30363d;
             border-radius: 8px;
-            overflow: hidden;
+            overflow-x: auto;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
+            min-width: 600px;
         }
 
         th, td {
@@ -157,18 +160,17 @@
             gap: 0.5rem;
         }
 
-        /* Modal */
+        /* Modal Responsive */
         .modal-overlay {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            inset: 0;
             background-color: rgba(0, 0, 0, 0.7);
             display: none;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
             z-index: 1000;
+            padding: 1rem;
+            overflow-y: auto;
         }
 
         .modal-overlay.visible {
@@ -181,8 +183,8 @@
             border-radius: 8px;
             width: 100%;
             max-width: 700px;
-            max-height: 90vh;
-            overflow-y: auto;
+            margin-top: 2rem;
+            margin-bottom: 2rem;
         }
 
         .modal-header {
@@ -228,7 +230,8 @@
         }
 
         .form-group input,
-        .form-group textarea {
+        .form-group textarea,
+        .form-group select {
             width: 100%;
             padding: 0.75rem;
             background-color: #0d1117;
@@ -240,7 +243,7 @@
         }
 
         .form-group textarea {
-            min-height: 150px;
+            min-height: 120px;
             resize: vertical;
             font-family: 'Monaco', 'Menlo', monospace;
         }
@@ -271,24 +274,29 @@
 
         .param-item {
             display: grid;
-            grid-template-columns: 1fr 1fr 80px 80px auto;
+            grid-template-columns: 1.2fr 1.2fr 1fr 1fr auto;
             gap: 0.5rem;
             margin-bottom: 0.5rem;
             align-items: center;
         }
 
-        .param-item input {
+        @media (max-width: 600px) {
+            .param-item {
+                grid-template-columns: 1fr 1fr;
+            }
+            .param-remove {
+                grid-column: span 2;
+                text-align: right;
+            }
+        }
+
+        .param-item input, .param-item select {
             padding: 0.5rem;
             background-color: #161b22;
             border: 1px solid #30363d;
             border-radius: 4px;
             color: #c9d1d9;
             font-size: 0.75rem;
-        }
-
-        .param-item input:focus {
-            outline: none;
-            border-color: #58a6ff;
         }
 
         .param-remove {
@@ -300,10 +308,6 @@
             padding: 0.25rem;
         }
 
-        .param-remove:hover {
-            color: #f85149;
-        }
-
         .add-param-btn {
             width: 100%;
             padding: 0.5rem;
@@ -313,11 +317,6 @@
             color: #8b949e;
             cursor: pointer;
             font-size: 0.875rem;
-        }
-
-        .add-param-btn:hover {
-            border-color: #58a6ff;
-            color: #58a6ff;
         }
 
         .modal-footer {
@@ -339,7 +338,7 @@
             font-size: 0.875rem;
             opacity: 0;
             transform: translateY(1rem);
-            transition: opacity 0.3s, transform 0.3s;
+            transition: 0.3s;
             z-index: 1001;
         }
 
@@ -348,32 +347,10 @@
             transform: translateY(0);
         }
 
-        .toast.error {
-            background-color: #da3633;
-        }
-
         .empty-state {
             text-align: center;
             padding: 3rem;
             color: #8b949e;
-        }
-
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #161b22;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #30363d;
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: #484f58;
         }
     </style>
 </head>
@@ -446,7 +423,6 @@
                             <div class="params-list" id="params-list"></div>
                             <button type="button" class="add-param-btn" onclick="addParam()">+ Add Parameter</button>
                         </div>
-                        <div class="form-hint">Define parameters that users can configure</div>
                     </div>
                 </form>
             </div>
@@ -540,7 +516,6 @@
             document.getElementById('prompt-description').value = prompt.description || '';
             document.getElementById('prompt-template').value = prompt.template;
             
-            // Render params
             const paramsList = document.getElementById('params-list');
             paramsList.innerHTML = '';
             if (prompt.params) {
@@ -555,10 +530,14 @@
             const div = document.createElement('div');
             div.className = 'param-item';
             div.innerHTML = `
-                <input type="text" placeholder="name" class="param-name" value="${param?.name || ''}">
+                <input type="text" placeholder="key" class="param-name" value="${param?.name || ''}">
                 <input type="text" placeholder="label" class="param-label" value="${param?.label || ''}">
-                <input type="number" placeholder="default" class="param-default" value="${param?.default ?? ''}">
-                <input type="number" placeholder="min" class="param-min" value="${param?.min ?? ''}">
+                <select class="param-type">
+                    <option value="text" ${param?.type === 'text' ? 'selected' : ''}>Text</option>
+                    <option value="number" ${param?.type === 'number' ? 'selected' : ''}>Number</option>
+                    <option value="textarea" ${param?.type === 'textarea' ? 'selected' : ''}>Textarea</option>
+                </select>
+                <input type="text" placeholder="default" class="param-default" value="${param?.default ?? ''}">
                 <button type="button" class="param-remove" onclick="this.parentElement.remove()">×</button>
             `;
             list.appendChild(div);
@@ -570,15 +549,12 @@
             items.forEach(item => {
                 const name = item.querySelector('.param-name').value.trim();
                 if (name) {
-                    const param = {
+                    params.push({
                         name: name,
                         label: item.querySelector('.param-label').value.trim() || name,
-                        type: 'number',
-                        default: parseInt(item.querySelector('.param-default').value) || 0,
-                    };
-                    const min = item.querySelector('.param-min').value;
-                    if (min !== '') param.min = parseInt(min);
-                    params.push(param);
+                        type: item.querySelector('.param-type').value,
+                        default: item.querySelector('.param-default').value
+                    });
                 }
             });
             return params;
@@ -596,7 +572,6 @@
             try {
                 const url = editingId ? `/api/prompts/${editingId}` : '/api/prompts';
                 const method = editingId ? 'PUT' : 'POST';
-                
                 const response = await fetch(url, {
                     method,
                     headers: { 'Content-Type': 'application/json' },
@@ -604,7 +579,6 @@
                 });
 
                 const result = await response.json();
-                
                 if (!result.success) throw new Error(result.error);
                 
                 showToast(editingId ? 'Prompt updated!' : 'Prompt created!');
@@ -622,11 +596,8 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ is_active: active })
                 });
-                
                 const result = await response.json();
                 if (!result.success) throw new Error(result.error);
-                
-                showToast(active ? 'Prompt enabled!' : 'Prompt disabled!');
                 fetchPrompts();
             } catch (error) {
                 showToast('Error: ' + error.message, true);
@@ -634,15 +605,11 @@
         }
 
         async function deletePrompt(id) {
-            if (!confirm('Are you sure you want to delete this prompt?')) return;
-            
+            if (!confirm('Are you sure?')) return;
             try {
                 const response = await fetch(`/api/prompts/${id}`, { method: 'DELETE' });
                 const result = await response.json();
-                
                 if (!result.success) throw new Error(result.error);
-                
-                showToast('Prompt deleted!');
                 fetchPrompts();
             } catch (error) {
                 showToast('Error: ' + error.message, true);
@@ -655,16 +622,6 @@
             toast.className = 'toast visible' + (isError ? ' error' : '');
             setTimeout(() => toast.classList.remove('visible'), 3000);
         }
-
-        // Close modal on escape key
-        document.addEventListener('keydown', e => {
-            if (e.key === 'Escape') closeModal();
-        });
-
-        // Close modal on overlay click
-        document.getElementById('modal').addEventListener('click', e => {
-            if (e.target.classList.contains('modal-overlay')) closeModal();
-        });
 
         fetchPrompts();
     </script>
