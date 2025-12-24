@@ -16,7 +16,7 @@
             background-color: #0d1117;
             color: #c9d1d9;
             min-height: 100vh;
-            padding: 1.5rem;
+            padding: 2rem;
         }
 
         .container {
@@ -101,18 +101,17 @@
             font-size: 0.75rem;
         }
 
-        /* Responsive Table Wrapper */
+        /* Responsive Table */
         .table-container {
             background-color: #161b22;
             border: 1px solid #30363d;
             border-radius: 8px;
-            overflow-x: auto;
+            overflow: hidden;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 600px;
         }
 
         th, td {
@@ -135,6 +134,35 @@
 
         tr:hover td {
             background-color: #1c2128;
+        }
+
+        @media (max-width: 768px) {
+            table, thead, tbody, th, td, tr { display: block; }
+            thead tr { position: absolute; top: -9999px; left: -9999px; }
+            tr { border: 1px solid #30363d; margin-bottom: 1rem; }
+            td {
+                border: none;
+                border-bottom: 1px solid #21262d;
+                position: relative;
+                padding-left: 45%;
+                min-height: 2.5rem;
+                display: flex;
+                align-items: center;
+                flex-wrap: wrap;
+            }
+            td::before {
+                position: absolute;
+                left: 1rem;
+                width: 40%;
+                padding-right: 10px;
+                white-space: nowrap;
+                content: attr(data-label);
+                color: #8b949e;
+                font-weight: bold;
+                font-size: 0.7rem;
+                text-transform: uppercase;
+            }
+            .actions { width: 100%; justify-content: flex-start; }
         }
 
         .status-badge {
@@ -160,10 +188,13 @@
             gap: 0.5rem;
         }
 
-        /* Modal Responsive */
+        /* Modal */
         .modal-overlay {
             position: fixed;
-            inset: 0;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             background-color: rgba(0, 0, 0, 0.7);
             display: none;
             align-items: flex-start;
@@ -238,7 +269,7 @@
             border: 1px solid #30363d;
             border-radius: 6px;
             color: #c9d1d9;
-            font-size: 0.875rem;
+            font-size: 16px;
             font-family: inherit;
         }
 
@@ -281,13 +312,8 @@
         }
 
         @media (max-width: 600px) {
-            .param-item {
-                grid-template-columns: 1fr 1fr;
-            }
-            .param-remove {
-                grid-column: span 2;
-                text-align: right;
-            }
+            .param-item { grid-template-columns: 1fr 1fr; }
+            .param-remove { grid-column: span 2; text-align: right; }
         }
 
         .param-item input, .param-item select {
@@ -338,7 +364,7 @@
             font-size: 0.875rem;
             opacity: 0;
             transform: translateY(1rem);
-            transition: 0.3s;
+            transition: opacity 0.3s, transform 0.3s;
             z-index: 1001;
         }
 
@@ -414,7 +440,6 @@
                     <div class="form-group">
                         <label for="prompt-template">Template</label>
                         <textarea id="prompt-template" required placeholder="Your prompt text here. Use {param_name} for dynamic values."></textarea>
-                        <div class="form-hint">Use {param_name} syntax for dynamic parameters, e.g., {phase_1_rounds}</div>
                     </div>
                     
                     <div class="form-group">
@@ -464,15 +489,15 @@
             
             tbody.innerHTML = prompts.map(p => `
                 <tr>
-                    <td>${escapeHtml(p.name)}</td>
-                    <td><code>${escapeHtml(p.slug)}</code></td>
-                    <td>${p.params ? p.params.length : 0}</td>
-                    <td>
+                    <td data-label="Name">${escapeHtml(p.name)}</td>
+                    <td data-label="Slug"><code>${escapeHtml(p.slug)}</code></td>
+                    <td data-label="Params">${p.params ? p.params.length : 0}</td>
+                    <td data-label="Status">
                         <span class="status-badge ${p.is_active ? 'status-active' : 'status-inactive'}">
                             ${p.is_active ? 'Active' : 'Inactive'}
                         </span>
                     </td>
-                    <td>
+                    <td data-label="Actions">
                         <div class="actions">
                             <button class="btn btn-secondary btn-sm" onclick="editPrompt(${p.id})">Edit</button>
                             <button class="btn btn-secondary btn-sm" onclick="toggleActive(${p.id}, ${!p.is_active})">

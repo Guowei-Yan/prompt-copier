@@ -5,18 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Prompt Copier</title>
     <style>
-        :root {
-            --bg-main: #0d1117;
-            --bg-card: #161b22;
-            --border: #30363d;
-            --text-main: #c9d1d9;
-            --text-dim: #8b949e;
-            --blue: #58a6ff;
-            --green: #238636;
-            --green-hover: #2ea043;
-            --error: #da3633;
-        }
-
         * {
             margin: 0;
             padding: 0;
@@ -25,11 +13,10 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background-color: var(--bg-main);
-            color: var(--text-main);
+            background-color: #0d1117;
+            color: #c9d1d9;
             min-height: 100vh;
-            padding: 1.5rem;
-            line-height: 1.5;
+            padding: 2rem;
         }
 
         .container {
@@ -42,48 +29,55 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 2rem;
-            flex-wrap: wrap;
-            gap: 1rem;
         }
 
         h1 {
-            color: var(--blue);
+            color: #58a6ff;
             font-weight: 600;
-            font-size: 1.5rem;
         }
 
         .admin-link {
-            color: var(--text-dim);
+            color: #8b949e;
             text-decoration: none;
             font-size: 0.875rem;
             padding: 0.5rem 1rem;
-            border: 1px solid var(--border);
+            border: 1px solid #30363d;
             border-radius: 6px;
             transition: all 0.2s;
         }
 
         .admin-link:hover {
-            color: var(--blue);
-            border-color: var(--blue);
+            color: #58a6ff;
+            border-color: #58a6ff;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #8b949e;
+        }
+
+        .empty-state h2 {
+            margin-bottom: 1rem;
+            color: #c9d1d9;
         }
 
         .prompt-grid {
-            display: grid;grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
-            gap: 1.25rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(min(100%, 350px), 1fr));
+            gap: 1.5rem;
         }
 
         .prompt-card {
-            background-color: var(--bg-card);
-            border: 1px solid var(--border);
+            background-color: #161b22;
+            border: 1px solid #30363d;
             border-radius: 8px;
             padding: 1.5rem;
             transition: border-color 0.2s;
-            display: flex;
-            flex-direction: column;
         }
 
         .prompt-card:hover {
-            border-color: var(--blue);
+            border-color: #58a6ff;
         }
 
         .prompt-card h3 {
@@ -93,39 +87,37 @@
         }
 
         .prompt-card .description {
-            color: var(--text-dim);
+            color: #8b949e;
             font-size: 0.875rem;
-            margin-bottom: 1.25rem;
+            margin-bottom: 1rem;
         }
 
         .params-container {
             display: flex;
             flex-direction: column;
             gap: 0.75rem;
-            margin-bottom: 1.25rem;
+            margin-bottom: 1rem;
         }
 
         .param-group {
             display: flex;
             flex-direction: column;
-            gap: 0.35rem;
+            gap: 0.25rem;
         }
 
         .param-group label {
             font-size: 0.75rem;
-            color: var(--text-dim);
-            font-weight: 600;
+            color: #8b949e;
         }
 
-        .param-group input, 
-        .param-group textarea {
+        .param-group input, .param-group textarea {
             width: 100%;
-            padding: 0.6rem;
-            background-color: var(--bg-main);
-            border: 1px solid var(--border);
+            padding: 0.5rem;
+            background-color: #0d1117;
+            border: 1px solid #30363d;
             border-radius: 4px;
-            color: var(--text-main);
-            font-size: 0.9rem;
+            color: #c9d1d9;
+            font-size: 16px;
             font-family: inherit;
         }
 
@@ -134,46 +126,43 @@
             min-height: 80px;
         }
 
-        .param-group input:focus,
-        .param-group textarea:focus {
+        .param-group input:focus, .param-group textarea:focus {
             outline: none;
-            border-color: var(--blue);
+            border-color: #58a6ff;
         }
 
         .btn {
-            padding: 0.75rem 1rem;
+            padding: 0.625rem 1rem;
             border: none;
             border-radius: 6px;
             font-size: 0.875rem;
-            font-weight: 600;
+            font-weight: 500;
             cursor: pointer;
-            transition: 0.2s;
-            width: 100%;
+            transition: background-color 0.2s;
         }
 
         .btn-primary {
-            background-color: var(--green);
+            background-color: #238636;
             color: #ffffff;
+            width: 100%;
         }
 
         .btn-primary:hover {
-            background-color: var(--green-hover);
+            background-color: #2ea043;
         }
 
         .btn-primary.copied {
-            background-color: var(--blue);
+            background-color: #58a6ff;
         }
 
         .preview-container {
-            margin-top: 1.25rem;
-            padding-top: 1rem;
-            border-top: 1px solid var(--border);
+            margin-top: 1rem;
         }
 
         .preview-toggle {
             background: none;
             border: none;
-            color: var(--blue);
+            color: #58a6ff;
             font-size: 0.75rem;
             cursor: pointer;
             padding: 0;
@@ -185,13 +174,13 @@
         }
 
         .preview-text {
-            background-color: #000;
-            border: 1px solid var(--border);
+            background-color: #0d1117;
+            border: 1px solid #30363d;
             border-radius: 4px;
             padding: 0.75rem;
             font-size: 0.75rem;
-            color: var(--text-dim);
-            max-height: 200px;
+            color: #8b949e;
+            max-height: 150px;
             overflow-y: auto;
             white-space: pre-wrap;
             word-break: break-word;
@@ -207,56 +196,59 @@
             bottom: 2rem;
             left: 50%;
             transform: translateX(-50%) translateY(100px);
-            background-color: var(--green);
+            background-color: #238636;
             color: #ffffff;
-            padding: 0.75rem 1.5rem;
+            padding: 1rem 1.5rem;
             border-radius: 50px;
             font-size: 0.875rem;
-            font-weight: 500;
-            transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            transition: transform 0.3s;
             z-index: 1000;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
 
         .toast.visible {
-            transform: translateX(-50%) translateY(0);
+            transform: translateY(0);
         }
 
         .toast.error {
-            background-color: var(--error);
+            background-color: #da3633;
         }
 
-        .empty-state {
-            text-align: center;
-            padding: 4rem 2rem;
-            color: var(--text-dim);
-            grid-column: 1 / -1;
-        }
-
-        @media (max-width: 480px) {
+        @media (max-width: 600px) {
             body { padding: 1rem; }
-            header { margin-bottom: 1.5rem; }
-            h1 { font-size: 1.25rem; }
-            .prompt-card { padding: 1.25rem; }
+            header { flex-direction: column; align-items: flex-start; }
+            .admin-link { margin-top: 1rem; }
         }
 
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: var(--bg-card); }
-        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #484f58; }
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #161b22;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #30363d;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #484f58;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
             <h1>Prompt Copier</h1>
-            <a href="/admin" class="admin-link">⚙️ Admin Settings</a>
+            <a href="/admin" class="admin-link">⚙️ Admin</a>
         </header>
 
         <div class="prompt-grid" id="prompts"></div>
         <div class="empty-state" id="empty-state" style="display: none;">
-            <h2>No prompts available</h2>
-            <p>Go to <a href="/admin" style="color: var(--blue);">Admin</a> to create your first prompt.</p>
+            <h2>No prompts yet</h2>
+            <p>Go to <a href="/admin" style="color: #58a6ff;">Admin</a> to create your first prompt.</p>
         </div>
     </div>
 
@@ -294,6 +286,7 @@
                 });
 
                 const data = await response.json();
+
                 if (!data.success) throw new Error(data.error);
 
                 await navigator.clipboard.writeText(data.prompt);
@@ -306,7 +299,7 @@
                 if (preview) preview.textContent = data.prompt;
 
                 setTimeout(() => {
-                    btn.textContent = 'Copy Prompt';
+                    btn.textContent = 'Copy';
                     btn.classList.remove('copied');
                 }, 2000);
 
@@ -334,6 +327,7 @@
             container.innerHTML = '';
 
             const slugs = Object.keys(promptConfig);
+
             if (slugs.length === 0) {
                 emptyState.style.display = 'block';
                 return;
@@ -350,28 +344,22 @@
                 let paramsHtml = '';
                 if (prompt.params && prompt.params.length > 0) {
                     paramsHtml = '<div class="params-container">' +
-                        prompt.params.map(param => {
-                            const inputId = `param-${slug}-${param.name}`;
-                            const common = `data-param="${param.name}" id="${inputId}"`;
-                            const val = param.default || '';
-                            
-                            return `
-                                <div class="param-group">
-                                    <label for="${inputId}">${param.label || param.name}</label>
-                                    ${param.type === 'textarea' 
-                                        ? `<textarea ${common}>${val}</textarea>`
-                                        : `<input type="${param.type || 'text'}" ${common} value="${val}">`
-                                    }
-                                </div>
-                            `;
-                        }).join('') + '</div>';
+                        prompt.params.map(param => `
+                            <div class="param-group">
+                                <label>${param.label || param.name}</label>
+                                ${param.type === 'textarea' 
+                                    ? `<textarea data-param="${param.name}">${param.default || ''}</textarea>`
+                                    : `<input type="${param.type || 'text'}" data-param="${param.name}" value="${param.default || ''}">`
+                                }
+                            </div>
+                        `).join('') + '</div>';
                 }
 
                 card.innerHTML = `
                     <h3>${prompt.name}</h3>
                     <p class="description">${prompt.description || ''}</p>
                     ${paramsHtml}
-                    <button class="btn btn-primary" onclick="generateAndCopy('${slug}')">Copy Prompt</button>
+                    <button class="btn btn-primary" onclick="generateAndCopy('${slug}')">Copy</button>
                     <div class="preview-container">
                         <button class="preview-toggle" id="toggle-${slug}" onclick="togglePreview('${slug}')">Show preview</button>
                         <div class="preview-text" id="preview-${slug}"></div>
