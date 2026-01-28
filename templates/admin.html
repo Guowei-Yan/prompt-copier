@@ -416,6 +416,22 @@
             font-size: 14px;
         }
 
+        .param-formula-field {
+            display: none;
+        }
+
+        .param-formula-field.visible {
+            display: block;
+        }
+
+        .param-depends-field {
+            display: none;
+        }
+
+        .param-depends-field.visible {
+            display: block;
+        }
+
         .param-remove {
             width: 100%;
             margin-top: 0.5rem;
@@ -620,6 +636,7 @@
                     <div class="form-group">
                         <label for="prompt-template">Template</label>
                         <textarea id="prompt-template" required placeholder="Your prompt text here. Use {param_name} for dynamic values."></textarea>
+                        <div class="form-hint">Use {param_name} for placeholders. For computed params, use randomInt(min, max) in formulas.</div>
                     </div>
                     
                     <div class="form-group">
@@ -766,10 +783,30 @@
             document.getElementById('modal').classList.add('visible');
         }
 
+        function onTypeChange(selectEl) {
+            const paramItem = selectEl.closest('.param-item');
+            const formulaField = paramItem.querySelector('.param-formula-field');
+            const dependsField = paramItem.querySelector('.param-depends-field');
+            const defaultField = paramItem.querySelector('.param-default-field');
+            
+            if (selectEl.value === 'computed') {
+                formulaField.classList.add('visible');
+                dependsField.classList.add('visible');
+                defaultField.style.display = 'none';
+            } else {
+                formulaField.classList.remove('visible');
+                dependsField.classList.remove('visible');
+                defaultField.style.display = 'block';
+            }
+        }
+
         function addParam(param = null) {
             const list = document.getElementById('params-list');
             const div = document.createElement('div');
             div.className = 'param-item';
+            
+            const isComputed = param?.type === 'computed';
+            
             div.innerHTML = `
                 <div class="param-field">
                     <label>Parameter Key</label>
@@ -781,15 +818,25 @@
                 </div>
                 <div class="param-field">
                     <label>Type</label>
-                    <select class="param-type">
+                    <select class="param-type" onchange="onTypeChange(this)">
                         <option value="text" ${param?.type === 'text' ? 'selected' : ''}>Text</option>
                         <option value="number" ${param?.type === 'number' ? 'selected' : ''}>Number</option>
                         <option value="textarea" ${param?.type === 'textarea' ? 'selected' : ''}>Textarea</option>
+                        <option value="computed" ${param?.type === 'computed' ? 'selected' : ''}>Computed (Formula)</option>
                     </select>
                 </div>
-                <div class="param-field">
+                <div class="param-field param-default-field" style="${isComputed ? 'display:none' : ''}">
                     <label>Default Value</label>
                     <input type="text" placeholder="Optional" class="param-default" value="${param?.default ?? ''}" autocomplete="off">
+                </div>
+                <div class="param-field param-formula-field ${isComputed ? 'visible' : ''}">
+                    <label>Formula (JS Expression)</label>
+                    <input type="text" placeholder="e.g., randomInt(multiplier*1700, multiplier*3300)" class="param-formula" value="${param?.formula || ''}" autocomplete="off">
+                    <div class="form-hint" style="margin-top:0.25rem">Use randomInt(min, max) for random numbers. Reference other params by name.</div>
+                </div>
+                <div class="param-field param-depends-field ${isComputed ? 'visible' : ''}">
+                    <label>Depends On (comma-separated param names)</label>
+                    <input type="text" placeholder="e.g., multiplier, target_tokens" class="param-depends" value="${(param?.depends_on || []).join(', ')}" autocomplete="off">
                 </div>
                 <button type="button" class="param-remove" onclick="this.parentElement.remove()">🗑️ Remove Parameter</button>
             `;
@@ -801,13 +848,24 @@
             const params = [];
             items.forEach(item => {
                 const name = item.querySelector('.param-name').value.trim();
+                const type = item.querySelector('.param-type').value;
+                
                 if (name) {
-                    params.push({
+                    const param = {
                         name: name,
                         label: item.querySelector('.param-label').value.trim() || name,
-                        type: item.querySelector('.param-type').value,
-                        default: item.querySelector('.param-default').value
-                    });
+                        type: type,
+                    };
+                    
+                    if (type === 'computed') {
+                        param.formula = item.querySelector('.param-formula').value.trim();
+                        const dependsStr = item.querySelector('.param-depends').value.trim();
+                        param.depends_on = dependsStr ? dependsStr.split(',').map(s => s.trim()).filter(s => s) : [];
+                    } else {
+                        param.default = item.querySelector('.param-default').value;
+                    }
+                    
+                    params.push(param);
                 }
             });
             return params;

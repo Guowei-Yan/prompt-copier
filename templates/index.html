@@ -134,6 +134,10 @@
             border-color: #58a6ff;
         }
 
+        .param-group.hidden {
+            display: none;
+        }
+
         .btn {
             padding: 0.625rem 1rem;
             border: none;
@@ -344,16 +348,80 @@
             }
         }
 
+        function randomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function evaluateFormula(formula, context) {
+            try {
+                const keys = Object.keys(context);
+                const values = Object.values(context);
+                const fn = new Function('randomInt', ...keys, `return (${formula});`);
+                return fn(randomInt, ...values);
+            } catch (e) {
+                console.error('Formula evaluation error:', e);
+                return '';
+            }
+        }
+
+        function sortParams(params) {
+            const sorted = [];
+            const remaining = [...params];
+            const added = new Set();
+            
+            for (const param of params) {
+                if (param.type !== 'computed') {
+                    sorted.push(param);
+                    added.add(param.name);
+                }
+            }
+            
+            let iterations = 0;
+            while (remaining.length > sorted.length && iterations < 100) {
+                for (const param of remaining) {
+                    if (param.type === 'computed' && !added.has(param.name)) {
+                        const deps = param.depends_on || [];
+                        if (deps.every(dep => added.has(dep))) {
+                            sorted.push(param);
+                            added.add(param.name);
+                        }
+                    }
+                }
+                iterations++;
+            }
+            
+            return sorted;
+        }
+
+        function collectParams(card, params) {
+            const values = {};
+            const sortedParams = sortParams(params);
+            
+            for (const param of sortedParams) {
+                if (param.type !== 'computed') {
+                    const input = card.querySelector(`[data-param="${param.name}"]`);
+                    if (input) {
+                        values[param.name] = param.type === 'number' ? parseFloat(input.value) || 0 : input.value;
+                    }
+                }
+            }
+            
+            for (const param of sortedParams) {
+                if (param.type === 'computed' && param.formula) {
+                    values[param.name] = evaluateFormula(param.formula, values);
+                }
+            }
+            
+            return values;
+        }
+
         async function generateAndCopy(slug) {
             const card = document.querySelector(`[data-prompt-slug="${slug}"]`);
             const btn = card.querySelector('.btn-primary');
+            const prompt = promptConfig[slug];
 
             try {
-                let params = {};
-                const inputs = card.querySelectorAll('[data-param]');
-                inputs.forEach(input => {
-                    params[input.dataset.param] = input.value;
-                });
+                const params = collectParams(card, prompt.params || []);
 
                 const response = await fetch('/api/generate', {
                     method: 'POST',
@@ -419,16 +487,25 @@
 
                 let paramsHtml = '';
                 if (prompt.params && prompt.params.length > 0) {
+                    const sortedParams = sortParams(prompt.params);
                     paramsHtml = '<div class="params-container">' +
-                        prompt.params.map(param => `
-                            <div class="param-group">
-                                <label>${param.label || param.name}</label>
-                                ${param.type === 'textarea' 
-                                    ? `<textarea data-param="${param.name}">${param.default || ''}</textarea>`
-                                    : `<input type="${param.type || 'text'}" data-param="${param.name}" value="${param.default || ''}">`
-                                }
-                            </div>
-                        `).join('') + '</div>';
+                        sortedParams.map(param => {
+                            if (param.type === 'computed') {
+                                return '';
+                            }
+                            if (param.hidden) {
+                                return '';
+                            }
+                            return `
+                                <div class="param-group">
+                                    <label>${param.label || param.name}</label>
+                                    ${param.type === 'textarea' 
+                                        ? `<textarea data-param="${param.name}">${param.default || ''}</textarea>`
+                                        : `<input type="${param.type || 'text'}" data-param="${param.name}" value="${param.default || ''}">`
+                                    }
+                                </div>
+                            `;
+                        }).join('') + '</div>';
                 }
 
                 card.innerHTML = `
