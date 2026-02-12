@@ -415,45 +415,6 @@
             return values;
         }
 
-        function fallbackCopyToClipboard(text) {
-            const textarea = document.createElement('textarea');
-            textarea.value = text;
-            textarea.style.position = 'fixed';
-            textarea.style.left = '-9999px';
-            textarea.style.top = '-9999px';
-            textarea.style.opacity = '0';
-            document.body.appendChild(textarea);
-            textarea.focus();
-            textarea.select();
-
-            // iOS-specific: set selection range explicitly
-            textarea.setSelectionRange(0, text.length);
-
-            let success = false;
-            try {
-                success = document.execCommand('copy');
-            } catch (err) {
-                success = false;
-            }
-            document.body.removeChild(textarea);
-            return success;
-        }
-
-        async function copyToClipboard(text) {
-            // Try modern Clipboard API first
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                try {
-                    await navigator.clipboard.writeText(text);
-                    return true;
-                } catch (err) {
-                    // Clipboard API failed (common on iOS after async operations)
-                    // Fall through to fallback
-                }
-            }
-            // Fallback for iOS and older browsers
-            return fallbackCopyToClipboard(text);
-        }
-
         async function generateAndCopy(slug) {
             const card = document.querySelector(`[data-prompt-slug="${slug}"]`);
             const btn = card.querySelector('.btn-primary');
@@ -462,26 +423,32 @@
             try {
                 const params = collectParams(card, prompt.params || []);
 
-                const response = await fetch('/api/generate', {
+                // Create the async content promise BEFORE passing to ClipboardItem.
+                // Safari allows ClipboardItem to accept a Promise<Blob>, which
+                // "reserves" the clipboard write synchronously within the user
+                // gesture, while the actual content resolves asynchronously.
+                const textPromise = fetch('/api/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ prompt_id: slug, params })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) throw new Error(data.error);
+
+                    const preview = document.getElementById(`preview-${slug}`);
+                    if (preview) preview.textContent = data.prompt;
+
+                    return new Blob([data.prompt], { type: 'text/plain' });
                 });
 
-                const data = await response.json();
-
-                if (!data.success) throw new Error(data.error);
-
-                const copied = await copyToClipboard(data.prompt);
-
-                if (!copied) throw new Error('Failed to copy to clipboard');
+                await navigator.clipboard.write([
+                    new ClipboardItem({ 'text/plain': textPromise })
+                ]);
 
                 btn.textContent = 'Copied!';
                 btn.classList.add('copied');
                 showToast('Prompt copied to clipboard!');
-
-                const preview = document.getElementById(`preview-${slug}`);
-                if (preview) preview.textContent = data.prompt;
 
                 setTimeout(() => {
                     btn.textContent = 'Copy';
