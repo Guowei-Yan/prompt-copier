@@ -415,6 +415,45 @@
             return values;
         }
 
+        function fallbackCopyToClipboard(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.left = '-9999px';
+            textarea.style.top = '-9999px';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+
+            // iOS-specific: set selection range explicitly
+            textarea.setSelectionRange(0, text.length);
+
+            let success = false;
+            try {
+                success = document.execCommand('copy');
+            } catch (err) {
+                success = false;
+            }
+            document.body.removeChild(textarea);
+            return success;
+        }
+
+        async function copyToClipboard(text) {
+            // Try modern Clipboard API first
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                try {
+                    await navigator.clipboard.writeText(text);
+                    return true;
+                } catch (err) {
+                    // Clipboard API failed (common on iOS after async operations)
+                    // Fall through to fallback
+                }
+            }
+            // Fallback for iOS and older browsers
+            return fallbackCopyToClipboard(text);
+        }
+
         async function generateAndCopy(slug) {
             const card = document.querySelector(`[data-prompt-slug="${slug}"]`);
             const btn = card.querySelector('.btn-primary');
@@ -433,7 +472,9 @@
 
                 if (!data.success) throw new Error(data.error);
 
-                await navigator.clipboard.writeText(data.prompt);
+                const copied = await copyToClipboard(data.prompt);
+
+                if (!copied) throw new Error('Failed to copy to clipboard');
 
                 btn.textContent = 'Copied!';
                 btn.classList.add('copied');
