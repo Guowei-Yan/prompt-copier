@@ -415,40 +415,42 @@
             return values;
         }
 
+        function generatePromptText(slug, params) {
+            const prompt = promptConfig[slug];
+            let result = prompt.template;
+
+            // Replace {param} placeholders with provided values
+            for (const [key, value] of Object.entries(params)) {
+                result = result.replaceAll('{' + key + '}', String(value));
+            }
+
+            // Fill remaining placeholders with defaults
+            for (const param of (prompt.params || [])) {
+                const placeholder = '{' + param.name + '}';
+                if (result.includes(placeholder)) {
+                    result = result.replaceAll(placeholder, String(param.default || ''));
+                }
+            }
+
+            return result;
+        }
+
         async function generateAndCopy(slug) {
             const card = document.querySelector(`[data-prompt-slug="${slug}"]`);
             const btn = card.querySelector('.btn-primary');
-            const prompt = promptConfig[slug];
 
             try {
-                const params = collectParams(card, prompt.params || []);
+                const params = collectParams(card, promptConfig[slug].params || []);
+                const text = generatePromptText(slug, params);
 
-                // Create the async content promise BEFORE passing to ClipboardItem.
-                // Safari allows ClipboardItem to accept a Promise<Blob>, which
-                // "reserves" the clipboard write synchronously within the user
-                // gesture, while the actual content resolves asynchronously.
-                const textPromise = fetch('/api/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt_id: slug, params })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (!data.success) throw new Error(data.error);
-
-                    const preview = document.getElementById(`preview-${slug}`);
-                    if (preview) preview.textContent = data.prompt;
-
-                    return new Blob([data.prompt], { type: 'text/plain' });
-                });
-
-                await navigator.clipboard.write([
-                    new ClipboardItem({ 'text/plain': textPromise })
-                ]);
+                await navigator.clipboard.writeText(text);
 
                 btn.textContent = 'Copied!';
                 btn.classList.add('copied');
                 showToast('Prompt copied to clipboard!');
+
+                const preview = document.getElementById(`preview-${slug}`);
+                if (preview) preview.textContent = text;
 
                 setTimeout(() => {
                     btn.textContent = 'Copy';

@@ -101,6 +101,7 @@ def get_prompt_config() -> Dict[str, Any]:
             'id': prompt.id,
             'name': prompt.name,
             'description': prompt.description,
+            'template': prompt.template,
             'params': prompt.params,
             'has_params': len(prompt.params) > 0
         }
