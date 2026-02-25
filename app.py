@@ -1,6 +1,7 @@
 import os
+from datetime import timedelta
 from functools import wraps
-from flask import Flask, request, jsonify, render_template, Response
+from flask import Flask, request, jsonify, render_template, redirect, url_for, session
 from config import AUTH_USERNAME, AUTH_PASSWORD, SECRET_KEY, SQLALCHEMY_DATABASE_URI
 from models import db, Prompt
 import prompts as prompt_service
@@ -9,6 +10,7 @@ app = Flask(__name__)
 app.secret_key = SECRET_KEY
 app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 
 db.init_app(app)
 
@@ -20,22 +22,42 @@ def check_auth(username: str, password: str) -> bool:
     return username == AUTH_USERNAME and password == AUTH_PASSWORD
 
 
-def authenticate():
-    return Response(
-        'Authentication required',
-        401,
-        {'WWW-Authenticate': 'Basic realm="Login Required"'}
-    )
-
-
 def requires_auth(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        auth = request.authorization
-        if not auth or not check_auth(auth.username, auth.password):
-            return authenticate()
+        if not session.get('authenticated'):
+            if request.is_json or request.path.startswith('/api/'):
+                return jsonify({'success': False, 'error': 'Authentication required'}), 401
+            return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated
+
+
+@app.route('/login')
+def login():
+    if session.get('authenticated'):
+        return redirect(url_for('index'))
+    return render_template('login.html')
+
+
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    data = request.get_json()
+    username = data.get('username', '')
+    password = data.get('password', '')
+
+    if check_auth(username, password):
+        session.permanent = True
+        session['authenticated'] = True
+        return jsonify({'success': True})
+    else:
+        return jsonify({'success': False, 'error': 'Invalid username or password'}), 401
+
+
+@app.route('/api/logout')
+def api_logout():
+    session.clear()
+    return redirect(url_for('login'))
 
 @app.route('/')
 @requires_auth
