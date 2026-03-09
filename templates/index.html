@@ -71,15 +71,14 @@
 
         .filter-bar {
             display: flex;
+            flex-wrap: wrap;
             gap: 0.5rem;
             margin-bottom: 1.5rem;
-            overflow-x: auto;
-            padding-bottom: 0.5rem;
-            -webkit-overflow-scrolling: touch;
         }
 
         .filter-btn {
-            padding: 0.4rem 1rem;
+            padding: 0.5rem 1rem;
+            min-height: 36px;
             border: 1px solid #30363d;
             border-radius: 50px;
             background-color: #161b22;
@@ -88,11 +87,17 @@
             cursor: pointer;
             white-space: nowrap;
             transition: all 0.2s;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .filter-btn:hover {
             border-color: #58a6ff;
             color: #c9d1d9;
+        }
+
+        .filter-btn:active {
+            transform: scale(0.95);
         }
 
         .filter-btn.active {
@@ -258,6 +263,16 @@
                 padding: 1.5rem;
             }
 
+            .filter-bar {
+                gap: 0.4rem;
+            }
+
+            .filter-btn {
+                min-height: 40px;
+                padding: 0.5rem 0.875rem;
+                font-size: 0.8rem;
+            }
+
             .prompt-grid {
                 gap: 1.25rem;
             }
@@ -285,6 +300,16 @@
             .admin-link {
                 width: 100%;
                 text-align: center;
+            }
+
+            .filter-bar {
+                gap: 0.375rem;
+            }
+
+            .filter-btn {
+                min-height: 44px;
+                padding: 0.5rem 0.75rem;
+                font-size: 0.8rem;
             }
 
             .prompt-grid {
@@ -373,7 +398,7 @@
 
     <script>
         let promptConfig = null;
-        let selectedGroup = null;
+        let selectedGroups = new Set();
 
         async function fetchConfig() {
             try {
@@ -400,17 +425,27 @@
             }
             bar.style.display = 'flex';
             const sorted = [...groups].sort();
-            bar.innerHTML = `<button class="filter-btn active" onclick="setGroup(null)">All</button>` +
-                sorted.map(g => `<button class="filter-btn" onclick="setGroup('${g.replace(/'/g, "\\'")}')">` +
-                    escapeHtml(g) + `</button>`).join('');
+            bar.innerHTML = `<button class="filter-btn${selectedGroups.size === 0 ? ' active' : ''}" onclick="clearGroups()">All</button>` +
+                sorted.map(g => {
+                    const isActive = selectedGroups.has(g);
+                    return `<button class="filter-btn${isActive ? ' active' : ''}" onclick="toggleGroup('${g.replace(/'/g, "\\'")}')">`  +
+                        escapeHtml(g) + `</button>`;
+                }).join('');
         }
 
-        function setGroup(group) {
-            selectedGroup = group;
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            event.currentTarget.classList.add('active');
+        function toggleGroup(group) {
+            if (selectedGroups.has(group)) {
+                selectedGroups.delete(group);
+            } else {
+                selectedGroups.add(group);
+            }
+            renderFilterBar();
+            renderPrompts();
+        }
+
+        function clearGroups() {
+            selectedGroups.clear();
+            renderFilterBar();
             renderPrompts();
         }
 
@@ -554,8 +589,8 @@
 
             let slugs = Object.keys(promptConfig);
 
-            if (selectedGroup) {
-                slugs = slugs.filter(s => promptConfig[s].group === selectedGroup);
+            if (selectedGroups.size > 0) {
+                slugs = slugs.filter(s => selectedGroups.has(promptConfig[s].group));
             }
 
             if (slugs.length === 0) {
