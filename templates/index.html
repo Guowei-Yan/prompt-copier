@@ -69,6 +69,38 @@
             gap: 1.5rem;
         }
 
+        .filter-bar {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            overflow-x: auto;
+            padding-bottom: 0.5rem;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .filter-btn {
+            padding: 0.4rem 1rem;
+            border: 1px solid #30363d;
+            border-radius: 50px;
+            background-color: #161b22;
+            color: #8b949e;
+            font-size: 0.8rem;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover {
+            border-color: #58a6ff;
+            color: #c9d1d9;
+        }
+
+        .filter-btn.active {
+            background-color: #1f6feb;
+            border-color: #1f6feb;
+            color: #ffffff;
+        }
+
         .prompt-card {
             background-color: #161b22;
             border: 1px solid #30363d;
@@ -328,6 +360,8 @@
             </div>
         </header>
 
+        <div class="filter-bar" id="filter-bar" style="display: none;"></div>
+
         <div class="prompt-grid" id="prompts"></div>
         <div class="empty-state" id="empty-state" style="display: none;">
             <h2>No prompts yet</h2>
@@ -339,16 +373,51 @@
 
     <script>
         let promptConfig = null;
+        let selectedGroup = null;
 
         async function fetchConfig() {
             try {
                 const response = await fetch('/api/config');
                 if (!response.ok) throw new Error('Failed to fetch config');
                 promptConfig = await response.json();
+                renderFilterBar();
                 renderPrompts();
             } catch (error) {
                 showToast('Failed to load prompts: ' + error.message, true);
             }
+        }
+
+        function renderFilterBar() {
+            const bar = document.getElementById('filter-bar');
+            const groups = new Set();
+            for (const slug of Object.keys(promptConfig)) {
+                const g = promptConfig[slug].group;
+                if (g) groups.add(g);
+            }
+            if (groups.size === 0) {
+                bar.style.display = 'none';
+                return;
+            }
+            bar.style.display = 'flex';
+            const sorted = [...groups].sort();
+            bar.innerHTML = `<button class="filter-btn active" onclick="setGroup(null)">All</button>` +
+                sorted.map(g => `<button class="filter-btn" onclick="setGroup('${g.replace(/'/g, "\\'")}')">` +
+                    escapeHtml(g) + `</button>`).join('');
+        }
+
+        function setGroup(group) {
+            selectedGroup = group;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.currentTarget.classList.add('active');
+            renderPrompts();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         function randomInt(min, max) {
@@ -483,7 +552,11 @@
             const emptyState = document.getElementById('empty-state');
             container.innerHTML = '';
 
-            const slugs = Object.keys(promptConfig);
+            let slugs = Object.keys(promptConfig);
+
+            if (selectedGroup) {
+                slugs = slugs.filter(s => promptConfig[s].group === selectedGroup);
+            }
 
             if (slugs.length === 0) {
                 emptyState.style.display = 'block';

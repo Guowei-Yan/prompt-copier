@@ -14,6 +14,7 @@ class Prompt(db.Model):
     description = db.Column(db.Text, default='')
     template = db.Column(db.Text, nullable=False)
     params_json = db.Column(db.Text, default='[]')  # JSON array of param configs
+    group_name = db.Column(db.String(100), default='', nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -52,6 +53,7 @@ class Prompt(db.Model):
             'description': self.description,
             'template': self.template,
             'params': self.params,
+            'group': self.group_name,
             'is_active': self.is_active,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,

@@ -586,6 +586,7 @@
                         <tr>
                             <th>Name</th>
                             <th>Slug</th>
+                            <th>Group</th>
                             <th>Params</th>
                             <th>Status</th>
                             <th>Actions</th>
@@ -632,6 +633,12 @@
                     <div class="form-group">
                         <label for="prompt-description">Description</label>
                         <input type="text" id="prompt-description" placeholder="Brief description of this prompt">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="prompt-group">Group</label>
+                        <input type="text" id="prompt-group" placeholder="e.g., coding, writing, marketing">
+                        <div class="form-hint">Optional. Prompts with the same group name will be grouped on the homepage.</div>
                     </div>
                     
                     <div class="form-group">
@@ -692,6 +699,7 @@
                 <tr>
                     <td>${escapeHtml(p.name)}</td>
                     <td><code>${escapeHtml(p.slug)}</code></td>
+                    <td>${escapeHtml(p.group || '')}</td>
                     <td>${p.params ? p.params.length : 0}</td>
                     <td>
                         <span class="status-badge ${p.is_active ? 'status-active' : 'status-inactive'}">
@@ -701,6 +709,7 @@
                     <td>
                         <div class="actions">
                             <button class="btn btn-secondary btn-sm" onclick="editPrompt(${p.id})">Edit</button>
+                            <button class="btn btn-secondary btn-sm" onclick="clonePrompt(${p.id})">Clone</button>
                             <button class="btn btn-secondary btn-sm" onclick="toggleActive(${p.id}, ${!p.is_active})">
                                 ${p.is_active ? 'Disable' : 'Enable'}
                             </button>
@@ -724,6 +733,10 @@
                         <code class="card-value">${escapeHtml(p.slug)}</code>
                     </div>
                     <div class="card-row">
+                        <span class="card-label">Group</span>
+                        <span class="card-value">${escapeHtml(p.group || '—')}</span>
+                    </div>
+                    <div class="card-row">
                         <span class="card-label">Parameters</span>
                         <span class="card-value">${p.params ? p.params.length : 0}</span>
                     </div>
@@ -735,6 +748,7 @@
                     ` : ''}
                     <div class="card-actions">
                         <button class="btn btn-secondary btn-sm" onclick="editPrompt(${p.id})">Edit</button>
+                        <button class="btn btn-secondary btn-sm" onclick="clonePrompt(${p.id})">Clone</button>
                         <button class="btn btn-secondary btn-sm" onclick="toggleActive(${p.id}, ${!p.is_active})">
                             ${p.is_active ? 'Disable' : 'Enable'}
                         </button>
@@ -773,6 +787,7 @@
             document.getElementById('prompt-name').value = prompt.name;
             document.getElementById('prompt-slug').value = prompt.slug;
             document.getElementById('prompt-description').value = prompt.description || '';
+            document.getElementById('prompt-group').value = prompt.group || '';
             document.getElementById('prompt-template').value = prompt.template;
             
             const paramsList = document.getElementById('params-list');
@@ -877,6 +892,7 @@
                 name: document.getElementById('prompt-name').value,
                 slug: document.getElementById('prompt-slug').value,
                 description: document.getElementById('prompt-description').value,
+                group: document.getElementById('prompt-group').value,
                 template: document.getElementById('prompt-template').value,
                 params: getParamsFromForm()
             };
@@ -925,6 +941,19 @@
                 if (!result.success) throw new Error(result.error);
                 fetchPrompts();
                 showToast('🗑️ Prompt deleted');
+            } catch (error) {
+                showToast('❌ Error: ' + error.message, true);
+            }
+        }
+
+        async function clonePrompt(id) {
+            try {
+                const response = await fetch(`/api/prompts/${id}/clone`, { method: 'POST' });
+                const result = await response.json();
+                if (!result.success) throw new Error(result.error);
+                showToast('📋 Prompt cloned! Opening editor...');
+                await fetchPrompts();
+                editPrompt(result.prompt.id);
             } catch (error) {
                 showToast('❌ Error: ' + error.message, true);
             }
