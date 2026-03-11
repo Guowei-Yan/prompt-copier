@@ -658,13 +658,12 @@
                     </div>
                 `;
 
-                // Wire up auto-resize for text-type textareas
+                container.appendChild(card);
+
                 card.querySelectorAll('textarea.auto-resize').forEach(ta => {
                     ta.addEventListener('input', () => autoResize(ta));
                     autoResize(ta);
                 });
-
-                container.appendChild(card);
             }
         }
 
