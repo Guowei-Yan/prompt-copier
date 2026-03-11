@@ -106,60 +106,9 @@
             font-size: 0.75rem;
         }
 
-        /* CRITICAL: Table container setup for horizontal scroll */
-        .table-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            width: 100%;
-        }
 
-        .table-wrapper {
-            background-color: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 8px;
-            overflow-x: auto;
-            overflow-y: visible;
-            width: 100%;
-            -webkit-overflow-scrolling: touch;
-        }
 
-        table {
-            width: 100%;
-            min-width: 800px; /* Force table to be wider than small screens */
-            border-collapse: collapse;
-            table-layout: auto;
-        }
 
-        th, td {
-            padding: 1rem;
-            text-align: left;
-            border-bottom: 1px solid #30363d;
-            white-space: nowrap;
-        }
-
-        th {
-            background-color: #21262d;
-            color: #8b949e;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            font-weight: 600;
-        }
-
-        tr:last-child td {
-            border-bottom: none;
-        }
-
-        tbody tr:hover td {
-            background-color: #1c2128;
-        }
-
-        td code {
-            background-color: #0d1117;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.75rem;
-        }
 
         .status-badge {
             display: inline-block;
@@ -180,23 +129,8 @@
             color: #8b949e;
         }
 
-        .actions {
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .scroll-hint {
-            text-align: center;
-            padding: 0.5rem;
-            font-size: 0.75rem;
-            color: #8b949e;
-            background-color: #0d1117;
-            border-top: 1px solid #30363d;
-        }
-
-        /* Card Layout for Very Narrow Screens */
         .cards-container {
-            display: none;
+            display: block;
             max-width: 1200px;
             margin: 0 auto;
         }
@@ -622,16 +556,7 @@
             margin: 0 auto;
         }
 
-        /* Switch to card layout on narrow screens */
-        @media (max-width: 768px) {
-            .table-container {
-                display: none;
-            }
 
-            .cards-container {
-                display: block;
-            }
-        }
 
         @media (max-width: 480px) {
             body {
@@ -688,28 +613,6 @@
             </div>
         </header>
 
-        <!-- Table View (Desktop/Tablet with Horizontal Scroll) -->
-        <div class="table-container" id="table-container">
-            <div class="table-wrapper">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Slug</th>
-                            <th>Group</th>
-                            <th>Params</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="prompts-table">
-                    </tbody>
-                </table>
-            </div>
-            <div class="scroll-hint">💡 Scroll horizontally to see all columns →</div>
-        </div>
-
-        <!-- Card View (Mobile) -->
         <div class="cards-container" id="cards-view">
         </div>
 
@@ -797,12 +700,10 @@
         }
 
         function renderPrompts() {
-            const tableBody = document.getElementById('prompts-table');
             const cardsContainer = document.getElementById('cards-view');
             const emptyState = document.getElementById('empty-state');
             
             if (prompts.length === 0) {
-                tableBody.innerHTML = '';
                 cardsContainer.innerHTML = '';
                 emptyState.style.display = 'block';
                 return;
@@ -810,32 +711,6 @@
             
             emptyState.style.display = 'none';
             
-            // Render table view
-            tableBody.innerHTML = prompts.map(p => `
-                <tr>
-                    <td>${escapeHtml(p.name)}</td>
-                    <td><code>${escapeHtml(p.slug)}</code></td>
-                    <td>${escapeHtml((p.groups || []).join(', ') || '')}</td>
-                    <td>${p.params ? p.params.length : 0}</td>
-                    <td>
-                        <span class="status-badge ${p.is_active ? 'status-active' : 'status-inactive'}">
-                            ${p.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                    </td>
-                    <td>
-                        <div class="actions">
-                            <button class="btn btn-secondary btn-sm" onclick="editPrompt(${p.id})">Edit</button>
-                            <button class="btn btn-secondary btn-sm" onclick="clonePrompt(${p.id})">Clone</button>
-                            <button class="btn btn-secondary btn-sm" onclick="toggleActive(${p.id}, ${!p.is_active})">
-                                ${p.is_active ? 'Disable' : 'Enable'}
-                            </button>
-                            <button class="btn btn-danger btn-sm" onclick="deletePrompt(${p.id})">Delete</button>
-                        </div>
-                    </td>
-                </tr>
-            `).join('');
-
-            // Render card view
             cardsContainer.innerHTML = prompts.map(p => `
                 <div class="prompt-card">
                     <div class="card-header">
