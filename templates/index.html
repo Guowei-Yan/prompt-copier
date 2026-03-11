@@ -169,8 +169,9 @@
         .param-group textarea.auto-resize {
             min-height: unset;
             height: 38px;
-            overflow: hidden;
-            resize: none;
+            max-height: 150px;
+            overflow-y: auto;
+            resize: vertical;
         }
 
         .param-group input:focus, .param-group textarea:focus {
@@ -591,7 +592,8 @@
 
         function autoResize(textarea) {
             textarea.style.height = 'auto';
-            textarea.style.height = textarea.scrollHeight + 'px';
+            const maxHeight = parseInt(getComputedStyle(textarea).maxHeight, 10) || 150;
+            textarea.style.height = Math.min(textarea.scrollHeight, maxHeight) + 'px';
         }
 
         function renderPrompts() {
