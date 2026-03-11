@@ -464,7 +464,6 @@
             color: #c9d1d9;
         }
 
-        /* Tag Input for Groups */
         .tag-input-container {
             background-color: #0d1117;
             border: 1px solid #30363d;
@@ -937,7 +936,6 @@
                 escapeHtml(g) + '</div>'
             ).join('');
 
-            // If filter text doesn't exactly match any existing group, offer to create it
             if (filter && !allGroups.some(g => g.toLowerCase() === filterLower)) {
                 html += `<div class="tag-dropdown-item new-group" data-index="${available.length}" onmousedown="addGroupTag('${filter.replace(/'/g, "\\'")}')">+ Create "${escapeHtml(filter)}"</div>`;
             }
