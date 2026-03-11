@@ -3,7 +3,6 @@ from typing import Dict, Any, List, Optional
 
 
 def get_all_prompts(active_only: bool = True) -> List[Prompt]:
-    """Get all prompts from database."""
     query = Prompt.query
     if active_only:
         query = query.filter_by(is_active=True)
@@ -11,12 +10,10 @@ def get_all_prompts(active_only: bool = True) -> List[Prompt]:
 
 
 def get_prompt_by_slug(slug: str) -> Optional[Prompt]:
-    """Get a prompt by its slug."""
     return Prompt.query.filter_by(slug=slug).first()
 
 
 def get_prompt_by_id(prompt_id: int) -> Optional[Prompt]:
-    """Get a prompt by its ID."""
     return Prompt.query.get(prompt_id)
 
 
@@ -26,16 +23,19 @@ def create_prompt(
     template: str,
     description: str = '',
     params: List[Dict] = None,
-    group: str = ''
+    group: str = '',
+    groups: List[str] = None
 ) -> Prompt:
-    """Create a new prompt."""
     prompt = Prompt(
         slug=slug,
         name=name,
         description=description,
         template=template,
-        group_name=group,
     )
+    if groups is not None:
+        prompt.groups = groups
+    else:
+        prompt.group_name = group
     prompt.params = params or []
     db.session.add(prompt)
     db.session.commit()
@@ -50,9 +50,9 @@ def update_prompt(
     description: str = None,
     params: List[Dict] = None,
     is_active: bool = None,
-    group: str = None
+    group: str = None,
+    groups: List[str] = None
 ) -> Optional[Prompt]:
-    """Update an existing prompt."""
     prompt = get_prompt_by_id(prompt_id)
     if not prompt:
         return None
@@ -69,7 +69,9 @@ def update_prompt(
         prompt.params = params
     if is_active is not None:
         prompt.is_active = is_active
-    if group is not None:
+    if groups is not None:
+        prompt.groups = groups
+    elif group is not None:
         prompt.group_name = group
     
     db.session.commit()
@@ -88,7 +90,6 @@ def delete_prompt(prompt_id: int) -> bool:
 
 
 def generate_prompt(slug: str, params: Dict[str, Any] = None) -> str:
-    """Generate a prompt by slug with given parameters."""
     prompt = get_prompt_by_slug(slug)
     if not prompt:
         raise ValueError(f"Prompt not found: {slug}")
@@ -97,7 +98,6 @@ def generate_prompt(slug: str, params: Dict[str, Any] = None) -> str:
 
 
 def clone_prompt(prompt_id: int) -> Optional[Prompt]:
-    """Clone a prompt, creating a copy with a unique slug."""
     original = get_prompt_by_id(prompt_id)
     if not original:
         return None
@@ -115,19 +115,23 @@ def clone_prompt(prompt_id: int) -> Optional[Prompt]:
         template=original.template,
         description=original.description,
         params=original.params,
-        group=original.group_name,
+        groups=original.groups,
     )
 
 
 def get_all_groups() -> List[str]:
-    """Return sorted list of distinct group names."""
-    rows = db.session.query(Prompt.group_name).distinct().all()
-    groups = sorted([r[0] for r in rows if r[0]])
-    return groups
+    rows = db.session.query(Prompt.group_name).all()
+    groups_set = set()
+    for r in rows:
+        if r[0]:
+            for g in r[0].split(','):
+                g = g.strip()
+                if g:
+                    groups_set.add(g)
+    return sorted(groups_set)
 
 
 def get_prompt_config() -> Dict[str, Any]:
-    """Return prompt configuration for frontend."""
     prompts = get_all_prompts(active_only=True)
     
     result = {}
@@ -138,7 +142,8 @@ def get_prompt_config() -> Dict[str, Any]:
             'description': prompt.description,
             'template': prompt.template,
             'params': prompt.params,
-            'group': prompt.group_name,
+            'group': prompt.groups[0] if prompt.groups else '',
+            'groups': prompt.groups,
             'has_params': len(prompt.params) > 0
         }
     

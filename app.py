@@ -130,7 +130,8 @@ def api_create_prompt():
             template=data['template'],
             description=data.get('description', ''),
             params=data.get('params', []),
-            group=data.get('group', '')
+            group=data.get('group', ''),
+            groups=data.get('groups')
         )
         return jsonify({'success': True, 'prompt': prompt.to_dict()})
     except Exception as e:
@@ -160,7 +161,8 @@ def api_update_prompt(prompt_id):
             description=data.get('description'),
             params=data.get('params'),
             is_active=data.get('is_active'),
-            group=data.get('group')
+            group=data.get('group'),
+            groups=data.get('groups')
         )
 
         if not prompt:

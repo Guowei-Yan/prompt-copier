@@ -30,6 +30,19 @@ class Prompt(db.Model):
     def params(self, value):
         self.params_json = json.dumps(value) if value else '[]'
     
+    @property
+    def groups(self):
+        if not self.group_name:
+            return []
+        return [g.strip() for g in self.group_name.split(',') if g.strip()]
+    
+    @groups.setter
+    def groups(self, value):
+        if value:
+            self.group_name = ','.join(g.strip() for g in value if g.strip())
+        else:
+            self.group_name = ''
+    
     def generate(self, param_values: dict = None) -> str:
         result = self.template
         
@@ -53,7 +66,8 @@ class Prompt(db.Model):
             'description': self.description,
             'template': self.template,
             'params': self.params,
-            'group': self.group_name,
+            'group': self.groups[0] if self.groups else '',
+            'groups': self.groups,
             'is_active': self.is_active,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,

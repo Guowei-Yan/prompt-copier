@@ -424,8 +424,10 @@
             const bar = document.getElementById('filter-bar');
             const groups = new Set();
             for (const slug of Object.keys(promptConfig)) {
-                const g = promptConfig[slug].group;
-                if (g) groups.add(g);
+                const gs = promptConfig[slug].groups || [];
+                for (const g of gs) {
+                    if (g) groups.add(g);
+                }
             }
             if (groups.size === 0) {
                 bar.style.display = 'none';
@@ -604,7 +606,10 @@
             let slugs = Object.keys(promptConfig);
 
             if (selectedGroups.size > 0) {
-                slugs = slugs.filter(s => selectedGroups.has(promptConfig[s].group));
+                slugs = slugs.filter(s => {
+                    const gs = promptConfig[s].groups || [];
+                    return gs.some(g => selectedGroups.has(g));
+                });
             }
 
             if (slugs.length === 0) {

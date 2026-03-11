@@ -464,6 +464,117 @@
             color: #c9d1d9;
         }
 
+        /* Tag Input for Groups */
+        .tag-input-container {
+            background-color: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 0.5rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.375rem;
+            cursor: text;
+            min-height: 42px;
+            position: relative;
+        }
+
+        .tag-input-container:focus-within {
+            border-color: #58a6ff;
+        }
+
+        .group-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            background-color: #1f6feb;
+            color: #ffffff;
+            padding: 0.25rem 0.5rem;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            animation: tagIn 0.15s ease;
+        }
+
+        @keyframes tagIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .group-tag .tag-remove {
+            background: none;
+            border: none;
+            color: rgba(255,255,255,0.7);
+            cursor: pointer;
+            font-size: 1rem;
+            line-height: 1;
+            padding: 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .group-tag .tag-remove:hover {
+            color: #ffffff;
+        }
+
+        .tag-text-input {
+            border: none;
+            outline: none;
+            background: transparent;
+            color: #c9d1d9;
+            font-size: 14px;
+            flex: 1;
+            min-width: 100px;
+            padding: 0.25rem 0;
+        }
+
+        .tag-text-input::placeholder {
+            color: #484f58;
+        }
+
+        .tag-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            margin-top: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+        }
+
+        .tag-dropdown.visible {
+            display: block;
+        }
+
+        .tag-dropdown-item {
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            color: #c9d1d9;
+            transition: background-color 0.1s;
+        }
+
+        .tag-dropdown-item:hover,
+        .tag-dropdown-item.highlighted {
+            background-color: #1f6feb;
+            color: #ffffff;
+        }
+
+        .tag-dropdown-item.new-group {
+            color: #58a6ff;
+            font-style: italic;
+        }
+
+        .tag-dropdown-item.new-group:hover,
+        .tag-dropdown-item.new-group.highlighted {
+            color: #ffffff;
+        }
+
         .modal-footer {
             display: flex;
             gap: 0.75rem;
@@ -636,9 +747,12 @@
                     </div>
                     
                     <div class="form-group">
-                        <label for="prompt-group">Group</label>
-                        <input type="text" id="prompt-group" placeholder="e.g., coding, writing, marketing">
-                        <div class="form-hint">Optional. Prompts with the same group name will be grouped on the homepage.</div>
+                        <label>Groups</label>
+                        <div class="tag-input-container" id="group-tag-container" onclick="document.getElementById('group-tag-input').focus()">
+                            <input type="text" class="tag-text-input" id="group-tag-input" placeholder="Type to add groups..." autocomplete="off">
+                            <div class="tag-dropdown" id="group-tag-dropdown"></div>
+                        </div>
+                        <div class="form-hint">Optional. Type to search existing groups or create new ones. Press Enter to add.</div>
                     </div>
                     
                     <div class="form-group">
@@ -668,6 +782,9 @@
     <script>
         let prompts = [];
         let editingId = null;
+        let allGroups = [];
+        let selectedGroupTags = [];
+        let highlightedDropdownIndex = -1;
 
         async function fetchPrompts() {
             try {
@@ -699,7 +816,7 @@
                 <tr>
                     <td>${escapeHtml(p.name)}</td>
                     <td><code>${escapeHtml(p.slug)}</code></td>
-                    <td>${escapeHtml(p.group || '')}</td>
+                    <td>${escapeHtml((p.groups || []).join(', ') || '')}</td>
                     <td>${p.params ? p.params.length : 0}</td>
                     <td>
                         <span class="status-badge ${p.is_active ? 'status-active' : 'status-inactive'}">
@@ -733,8 +850,8 @@
                         <code class="card-value">${escapeHtml(p.slug)}</code>
                     </div>
                     <div class="card-row">
-                        <span class="card-label">Group</span>
-                        <span class="card-value">${escapeHtml(p.group || '—')}</span>
+                        <span class="card-label">Groups</span>
+                        <span class="card-value">${escapeHtml((p.groups || []).join(', ') || '—')}</span>
                     </div>
                     <div class="card-row">
                         <span class="card-label">Parameters</span>
@@ -764,11 +881,151 @@
             return div.innerHTML;
         }
 
+        async function fetchGroups() {
+            try {
+                const response = await fetch('/api/groups');
+                if (response.ok) allGroups = await response.json();
+            } catch (e) { /* ignore */ }
+        }
+
+        // --- Tag Input Logic ---
+        function renderGroupTags() {
+            const container = document.getElementById('group-tag-container');
+            // Remove existing tag elements
+            container.querySelectorAll('.group-tag').forEach(el => el.remove());
+            const input = document.getElementById('group-tag-input');
+            selectedGroupTags.forEach((tag, idx) => {
+                const el = document.createElement('span');
+                el.className = 'group-tag';
+                el.innerHTML = `${escapeHtml(tag)}<button type="button" class="tag-remove" onclick="removeGroupTag(${idx})">&times;</button>`;
+                container.insertBefore(el, input);
+            });
+        }
+
+        function addGroupTag(name) {
+            name = name.trim();
+            if (!name || selectedGroupTags.includes(name)) return;
+            selectedGroupTags.push(name);
+            if (!allGroups.includes(name)) allGroups.push(name);
+            renderGroupTags();
+            const input = document.getElementById('group-tag-input');
+            input.value = '';
+            hideGroupDropdown();
+        }
+
+        function removeGroupTag(idx) {
+            selectedGroupTags.splice(idx, 1);
+            renderGroupTags();
+        }
+
+        function showGroupDropdown(filter = '') {
+            const dropdown = document.getElementById('group-tag-dropdown');
+            const filterLower = filter.toLowerCase();
+            const available = allGroups.filter(g =>
+                !selectedGroupTags.includes(g) &&
+                g.toLowerCase().includes(filterLower)
+            );
+            highlightedDropdownIndex = -1;
+
+            if (available.length === 0 && !filter) {
+                dropdown.classList.remove('visible');
+                return;
+            }
+
+            let html = available.map((g, i) =>
+                `<div class="tag-dropdown-item" data-index="${i}" onmousedown="addGroupTag('${g.replace(/'/g, "\\'")}')">` +
+                escapeHtml(g) + '</div>'
+            ).join('');
+
+            // If filter text doesn't exactly match any existing group, offer to create it
+            if (filter && !allGroups.some(g => g.toLowerCase() === filterLower)) {
+                html += `<div class="tag-dropdown-item new-group" data-index="${available.length}" onmousedown="addGroupTag('${filter.replace(/'/g, "\\'")}')">+ Create "${escapeHtml(filter)}"</div>`;
+            }
+
+            if (!html) {
+                dropdown.classList.remove('visible');
+                return;
+            }
+
+            dropdown.innerHTML = html;
+            dropdown.classList.add('visible');
+        }
+
+        function hideGroupDropdown() {
+            document.getElementById('group-tag-dropdown').classList.remove('visible');
+            highlightedDropdownIndex = -1;
+        }
+
+        function navigateDropdown(direction) {
+            const dropdown = document.getElementById('group-tag-dropdown');
+            const items = dropdown.querySelectorAll('.tag-dropdown-item');
+            if (items.length === 0) return;
+
+            items.forEach(i => i.classList.remove('highlighted'));
+            highlightedDropdownIndex += direction;
+            if (highlightedDropdownIndex < 0) highlightedDropdownIndex = items.length - 1;
+            if (highlightedDropdownIndex >= items.length) highlightedDropdownIndex = 0;
+            items[highlightedDropdownIndex].classList.add('highlighted');
+            items[highlightedDropdownIndex].scrollIntoView({ block: 'nearest' });
+        }
+
+        function selectHighlightedDropdownItem() {
+            const dropdown = document.getElementById('group-tag-dropdown');
+            const items = dropdown.querySelectorAll('.tag-dropdown-item');
+            if (highlightedDropdownIndex >= 0 && highlightedDropdownIndex < items.length) {
+                items[highlightedDropdownIndex].dispatchEvent(new Event('mousedown'));
+                return true;
+            }
+            return false;
+        }
+
+        // Wire up the tag input events
+        document.addEventListener('DOMContentLoaded', () => {
+            const input = document.getElementById('group-tag-input');
+
+            input.addEventListener('input', () => {
+                showGroupDropdown(input.value);
+            });
+
+            input.addEventListener('focus', () => {
+                showGroupDropdown(input.value);
+            });
+
+            input.addEventListener('blur', () => {
+                setTimeout(() => hideGroupDropdown(), 150);
+            });
+
+            input.addEventListener('keydown', (e) => {
+                const dropdown = document.getElementById('group-tag-dropdown');
+                const isVisible = dropdown.classList.contains('visible');
+
+                if (e.key === 'ArrowDown' && isVisible) {
+                    e.preventDefault();
+                    navigateDropdown(1);
+                } else if (e.key === 'ArrowUp' && isVisible) {
+                    e.preventDefault();
+                    navigateDropdown(-1);
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (isVisible && highlightedDropdownIndex >= 0) {
+                        selectHighlightedDropdownItem();
+                    } else if (input.value.trim()) {
+                        addGroupTag(input.value);
+                    }
+                } else if (e.key === 'Backspace' && !input.value && selectedGroupTags.length > 0) {
+                    removeGroupTag(selectedGroupTags.length - 1);
+                }
+            });
+        });
+
         function openCreateModal() {
             editingId = null;
             document.getElementById('modal-title').textContent = 'New Prompt';
             document.getElementById('prompt-form').reset();
             document.getElementById('params-list').innerHTML = '';
+            selectedGroupTags = [];
+            renderGroupTags();
+            document.getElementById('group-tag-input').value = '';
             document.getElementById('modal').classList.add('visible');
         }
 
@@ -787,7 +1044,9 @@
             document.getElementById('prompt-name').value = prompt.name;
             document.getElementById('prompt-slug').value = prompt.slug;
             document.getElementById('prompt-description').value = prompt.description || '';
-            document.getElementById('prompt-group').value = prompt.group || '';
+            selectedGroupTags = [...(prompt.groups || [])];
+            renderGroupTags();
+            document.getElementById('group-tag-input').value = '';
             document.getElementById('prompt-template').value = prompt.template;
             
             const paramsList = document.getElementById('params-list');
@@ -892,7 +1151,7 @@
                 name: document.getElementById('prompt-name').value,
                 slug: document.getElementById('prompt-slug').value,
                 description: document.getElementById('prompt-description').value,
-                group: document.getElementById('prompt-group').value,
+                groups: [...selectedGroupTags],
                 template: document.getElementById('prompt-template').value,
                 params: getParamsFromForm()
             };
@@ -967,6 +1226,7 @@
         }
 
         fetchPrompts();
+        fetchGroups();
     </script>
 </body>
 </html>
