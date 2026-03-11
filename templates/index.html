@@ -166,6 +166,13 @@
             min-height: 80px;
         }
 
+        .param-group textarea.auto-resize {
+            min-height: unset;
+            height: 38px;
+            overflow: hidden;
+            resize: none;
+        }
+
         .param-group input:focus, .param-group textarea:focus {
             outline: none;
             border-color: #58a6ff;
@@ -582,6 +589,11 @@
             }
         }
 
+        function autoResize(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = textarea.scrollHeight + 'px';
+        }
+
         function renderPrompts() {
             const container = document.getElementById('prompts');
             const emptyState = document.getElementById('empty-state');
@@ -617,13 +629,19 @@
                             if (param.hidden) {
                                 return '';
                             }
+                            let inputHtml;
+                            if (param.type === 'textarea') {
+                                inputHtml = `<textarea data-param="${param.name}">${param.default || ''}</textarea>`;
+                            } else if (param.type === 'number') {
+                                inputHtml = `<input type="number" data-param="${param.name}" value="${param.default || ''}">`;
+                            } else {
+                                // text type — use auto-resizing textarea to support multiline
+                                inputHtml = `<textarea class="auto-resize" data-param="${param.name}" rows="1">${param.default || ''}</textarea>`;
+                            }
                             return `
                                 <div class="param-group">
                                     <label>${param.label || param.name}</label>
-                                    ${param.type === 'textarea' 
-                                        ? `<textarea data-param="${param.name}">${param.default || ''}</textarea>`
-                                        : `<input type="${param.type || 'text'}" data-param="${param.name}" value="${param.default || ''}">`
-                                    }
+                                    ${inputHtml}
                                 </div>
                             `;
                         }).join('') + '</div>';
@@ -639,6 +657,12 @@
                         <div class="preview-text" id="preview-${slug}"></div>
                     </div>
                 `;
+
+                // Wire up auto-resize for text-type textareas
+                card.querySelectorAll('textarea.auto-resize').forEach(ta => {
+                    ta.addEventListener('input', () => autoResize(ta));
+                    autoResize(ta);
+                });
 
                 container.appendChild(card);
             }
