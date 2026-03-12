@@ -23,6 +23,7 @@ COPY models.py .
 COPY prompts.py .
 COPY git_service.py .
 COPY ssh_keys.py .
+COPY email_service.py .
 COPY templates/ templates/
 
 # Create data directory (for DB and SSH keys)

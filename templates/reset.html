@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reset Credentials - Prompt Copier</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background-color: #0d1117;
+            color: #c9d1d9;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .reset-container {
+            width: 100%;
+            max-width: 420px;
+        }
+
+        .reset-card {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 2rem;
+        }
+
+        .reset-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .reset-header h1 {
+            color: #58a6ff;
+            font-weight: 600;
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .reset-header p {
+            color: #8b949e;
+            font-size: 0.875rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #c9d1d9;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: #c9d1d9;
+            font-size: 16px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #58a6ff;
+        }
+
+        .btn-reset {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: #238636;
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-top: 0.5rem;
+        }
+
+        .btn-reset:hover {
+            background-color: #2ea043;
+        }
+
+        .btn-reset:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .error-message {
+            background-color: rgba(218, 54, 51, 0.15);
+            border: 1px solid rgba(218, 54, 51, 0.4);
+            color: #f85149;
+            padding: 0.75rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .success-message {
+            background-color: rgba(35, 134, 54, 0.15);
+            border: 1px solid rgba(35, 134, 54, 0.4);
+            color: #3fb950;
+            padding: 0.75rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .login-link {
+            display: block;
+            text-align: center;
+            margin-top: 1rem;
+            color: #58a6ff;
+            text-decoration: none;
+            font-size: 0.875rem;
+        }
+
+        .login-link:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 480px) {
+            .reset-card { padding: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="reset-container">
+        <div class="reset-card">
+            <div class="reset-header">
+                <h1>Prompt Copier</h1>
+                <p>Reset your credentials</p>
+            </div>
+
+            {% if error %}
+            <div class="error-message">{{ error }}</div>
+            <a href="/login" class="login-link">← Back to Login</a>
+            {% else %}
+            <div id="error-msg" class="error-message" style="display: none;"></div>
+            <div id="success-msg" class="success-message" style="display: none;"></div>
+
+            <form id="reset-form" onsubmit="return handleReset(event)">
+                <div class="form-group">
+                    <label for="new-username">New Username</label>
+                    <input type="text" id="new-username" required autofocus placeholder="Choose a username">
+                </div>
+
+                <div class="form-group">
+                    <label for="new-password">New Password</label>
+                    <input type="password" id="new-password" required placeholder="Choose a new password">
+                </div>
+
+                <div class="form-group">
+                    <label for="confirm-password">Confirm Password</label>
+                    <input type="password" id="confirm-password" required placeholder="Re-enter password">
+                </div>
+
+                <button type="submit" class="btn-reset" id="reset-btn">Reset Credentials</button>
+            </form>
+
+            <a href="/login" class="login-link">← Back to Login</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if not error %}
+    <script>
+        const RESET_TOKEN = '{{ token }}';
+
+        async function handleReset(e) {
+            e.preventDefault();
+
+            const btn = document.getElementById('reset-btn');
+            const errorEl = document.getElementById('error-msg');
+            const successEl = document.getElementById('success-msg');
+
+            const newUsername = document.getElementById('new-username').value.trim();
+            const newPassword = document.getElementById('new-password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+
+            errorEl.style.display = 'none';
+            successEl.style.display = 'none';
+
+            if (!newUsername || !newPassword) {
+                errorEl.textContent = 'All fields are required';
+                errorEl.style.display = 'block';
+                return false;
+            }
+
+            if (newPassword !== confirmPassword) {
+                errorEl.textContent = 'Passwords do not match';
+                errorEl.style.display = 'block';
+                return false;
+            }
+
+            if (newPassword.length < 4) {
+                errorEl.textContent = 'Password must be at least 4 characters';
+                errorEl.style.display = 'block';
+                return false;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Resetting...';
+
+            try {
+                const res = await fetch('/api/reset-credentials', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        token: RESET_TOKEN,
+                        new_username: newUsername,
+                        new_password: newPassword,
+                    }),
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    successEl.textContent = 'Credentials reset successfully! Redirecting to login...';
+                    successEl.style.display = 'block';
+                    document.getElementById('reset-form').style.display = 'none';
+                    setTimeout(() => window.location.href = '/login', 2000);
+                } else {
+                    errorEl.textContent = data.error || 'Reset failed';
+                    errorEl.style.display = 'block';
+                }
+            } catch (error) {
+                errorEl.textContent = 'Connection error. Please try again.';
+                errorEl.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Reset Credentials';
+            }
+
+            return false;
+        }
+    </script>
+    {% endif %}
+</body>
+</html>

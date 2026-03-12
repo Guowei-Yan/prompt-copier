@@ -3,11 +3,14 @@ from datetime import timedelta
 from functools import wraps
 import traceback
 from flask import Flask, request, jsonify, render_template, redirect, url_for, session
+from werkzeug.security import generate_password_hash, check_password_hash
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from config import AUTH_USERNAME, AUTH_PASSWORD, SECRET_KEY, SQLALCHEMY_DATABASE_URI
-from models import db, Prompt
+from models import db, Prompt, AppSettings
 import prompts as prompt_service
 import git_service
 import ssh_keys
+import email_service
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
@@ -16,6 +19,8 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 
 db.init_app(app)
+
+reset_serializer = URLSafeTimedSerializer(SECRET_KEY)
 
 with app.app_context():
     db.create_all()
@@ -28,9 +33,18 @@ with app.app_context():
             conn.execute(text("ALTER TABLE prompts ADD COLUMN group_name VARCHAR(100) DEFAULT '' NOT NULL"))
             conn.commit()
 
+    # Seed credentials from env vars on first run only
+    if not AppSettings.get('auth_username'):
+        AppSettings.set('auth_username', AUTH_USERNAME)
+        AppSettings.set('auth_password', generate_password_hash(AUTH_PASSWORD))
+
 
 def check_auth(username: str, password: str) -> bool:
-    return username == AUTH_USERNAME and password == AUTH_PASSWORD
+    stored_user = AppSettings.get('auth_username', '')
+    stored_hash = AppSettings.get('auth_password', '')
+    if not stored_user or not stored_hash:
+        return False
+    return username == stored_user and check_password_hash(stored_hash, password)
 
 
 def requires_auth(f):
@@ -80,6 +94,115 @@ def index():
 @requires_auth
 def admin():
     return render_template('admin.html')
+
+
+@app.route('/settings')
+@requires_auth
+def settings_page():
+    return render_template('settings.html')
+
+
+@app.route('/api/settings', methods=['GET'])
+@requires_auth
+def api_get_settings():
+    return jsonify({
+        'username': AppSettings.get('auth_username', ''),
+        'smtp_host': AppSettings.get('smtp_host', ''),
+        'smtp_port': AppSettings.get('smtp_port', '587'),
+        'smtp_user': AppSettings.get('smtp_user', ''),
+        'reset_email': AppSettings.get('reset_email', ''),
+        'smtp_configured': email_service.is_smtp_configured(),
+    })
+
+
+@app.route('/api/settings/smtp', methods=['POST'])
+@requires_auth
+def api_save_smtp():
+    data = request.get_json()
+    for key in ('smtp_host', 'smtp_port', 'smtp_user', 'smtp_password', 'reset_email'):
+        if key in data:
+            AppSettings.set(key, str(data[key]).strip())
+    return jsonify({'success': True})
+
+
+@app.route('/api/test-smtp', methods=['POST'])
+@requires_auth
+def api_test_smtp():
+    try:
+        email_service.send_test_email()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/change-credentials', methods=['POST'])
+@requires_auth
+def api_change_credentials():
+    if not email_service.is_smtp_configured():
+        return jsonify({'success': False, 'error': 'SMTP must be configured before changing credentials'}), 400
+
+    data = request.get_json()
+    current_password = data.get('current_password', '')
+    new_username = data.get('new_username', '').strip()
+    new_password = data.get('new_password', '')
+
+    if not current_password or not new_username or not new_password:
+        return jsonify({'success': False, 'error': 'All fields are required'}), 400
+
+    stored_hash = AppSettings.get('auth_password', '')
+    if not check_password_hash(stored_hash, current_password):
+        return jsonify({'success': False, 'error': 'Current password is incorrect'}), 403
+
+    AppSettings.set('auth_username', new_username)
+    AppSettings.set('auth_password', generate_password_hash(new_password))
+    session.clear()
+    return jsonify({'success': True})
+
+
+@app.route('/api/forgot-credentials', methods=['POST'])
+def api_forgot_credentials():
+    if not email_service.is_smtp_configured():
+        return jsonify({'success': False, 'error': 'Password reset is not available — SMTP is not configured'}), 400
+
+    try:
+        token = reset_serializer.dumps('reset-credentials', salt='credential-reset')
+        reset_url = request.host_url.rstrip('/') + '/reset/' + token
+        email_service.send_reset_email(reset_url)
+        return jsonify({'success': True})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/reset/<token>')
+def reset_page(token):
+    try:
+        reset_serializer.loads(token, salt='credential-reset', max_age=3600)
+    except (SignatureExpired, BadSignature):
+        return render_template('reset.html', error='This reset link is invalid or has expired.')
+    return render_template('reset.html', token=token, error=None)
+
+
+@app.route('/api/reset-credentials', methods=['POST'])
+def api_reset_credentials():
+    data = request.get_json()
+    token = data.get('token', '')
+    new_username = data.get('new_username', '').strip()
+    new_password = data.get('new_password', '')
+
+    if not token or not new_username or not new_password:
+        return jsonify({'success': False, 'error': 'All fields are required'}), 400
+
+    try:
+        reset_serializer.loads(token, salt='credential-reset', max_age=3600)
+    except SignatureExpired:
+        return jsonify({'success': False, 'error': 'This reset link has expired'}), 400
+    except BadSignature:
+        return jsonify({'success': False, 'error': 'Invalid reset token'}), 400
+
+    AppSettings.set('auth_username', new_username)
+    AppSettings.set('auth_password', generate_password_hash(new_password))
+    return jsonify({'success': True})
 
 
 

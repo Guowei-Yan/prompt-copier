@@ -94,3 +94,25 @@ class SavedParams(db.Model):
             'param_name': self.param_name,
             'param_value': self.param_value,
         }
+
+
+class AppSettings(db.Model):
+    __tablename__ = 'app_settings'
+
+    key = db.Column(db.String(100), primary_key=True)
+    value = db.Column(db.Text, default='')
+
+    @staticmethod
+    def get(key, default=''):
+        row = AppSettings.query.get(key)
+        return row.value if row else default
+
+    @staticmethod
+    def set(key, value):
+        row = AppSettings.query.get(key)
+        if row:
+            row.value = value
+        else:
+            row = AppSettings(key=key, value=value)
+            db.session.add(row)
+        db.session.commit()

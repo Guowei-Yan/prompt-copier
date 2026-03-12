@@ -149,6 +149,13 @@
 
                 <button type="submit" class="btn-login" id="login-btn">Sign in</button>
             </form>
+
+            <div style="text-align: center; margin-top: 1rem;">
+                <a href="#" id="forgot-link" onclick="handleForgot(event)" style="color: #58a6ff; font-size: 0.825rem; text-decoration: none;">
+                    Forgot credentials?
+                </a>
+            </div>
+            <div id="forgot-message" style="display: none; margin-top: 0.75rem; padding: 0.75rem; border-radius: 6px; font-size: 0.875rem; text-align: center;"></div>
         </div>
     </div>
 
@@ -187,6 +194,44 @@
             } finally {
                 btn.disabled = false;
                 btn.textContent = 'Sign in';
+            }
+        }
+
+        async function handleForgot(e) {
+            e.preventDefault();
+            const msgEl = document.getElementById('forgot-message');
+            const link = document.getElementById('forgot-link');
+
+            link.style.pointerEvents = 'none';
+            link.style.opacity = '0.5';
+            msgEl.style.display = 'none';
+
+            try {
+                const res = await fetch('/api/forgot-credentials', { method: 'POST' });
+                const data = await res.json();
+
+                if (data.success) {
+                    msgEl.style.display = 'block';
+                    msgEl.style.backgroundColor = 'rgba(35, 134, 54, 0.15)';
+                    msgEl.style.border = '1px solid rgba(35, 134, 54, 0.4)';
+                    msgEl.style.color = '#3fb950';
+                    msgEl.textContent = 'Reset link sent! Check your email inbox.';
+                } else {
+                    msgEl.style.display = 'block';
+                    msgEl.style.backgroundColor = 'rgba(218, 54, 51, 0.15)';
+                    msgEl.style.border = '1px solid rgba(218, 54, 51, 0.4)';
+                    msgEl.style.color = '#f85149';
+                    msgEl.textContent = data.error || 'Could not send reset email.';
+                }
+            } catch (error) {
+                msgEl.style.display = 'block';
+                msgEl.style.backgroundColor = 'rgba(218, 54, 51, 0.15)';
+                msgEl.style.border = '1px solid rgba(218, 54, 51, 0.4)';
+                msgEl.style.color = '#f85149';
+                msgEl.textContent = 'Connection error. Please try again.';
+            } finally {
+                link.style.pointerEvents = '';
+                link.style.opacity = '';
             }
         }
     </script>
