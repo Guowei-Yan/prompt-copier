@@ -369,7 +369,7 @@
             }
         }
 
-        /* Very small phones */
+
         @media (max-width: 360px) {
             body {
                 padding: 0.75rem;
@@ -489,7 +489,7 @@
                     const key = `${slug}.${input.dataset.param}`;
                     if (key in saved) {
                         input.value = saved[key];
-                        // Trigger auto-resize for textareas
+
                         if (input.tagName === 'TEXTAREA' && input.classList.contains('auto-resize')) {
                             autoResize(input);
                         }
@@ -750,7 +750,7 @@
                             } else if (param.type === 'number') {
                                 inputHtml = `<input type="number" data-param="${param.name}" value="${param.default || ''}">`;
                             } else {
-                                // text type — use auto-resizing textarea to support multiline
+
                                 inputHtml = `<textarea class="auto-resize" data-param="${param.name}" rows="1">${param.default || ''}</textarea>`;
                             }
                             return `

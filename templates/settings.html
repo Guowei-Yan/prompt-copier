@@ -246,7 +246,7 @@
             </div>
         </header>
 
-        <!-- SMTP Configuration -->
+
         <div class="section">
             <h2>📧 Email (SMTP) Configuration</h2>
             <p class="form-hint" style="margin-bottom: 1rem;">
@@ -287,7 +287,7 @@
             </div>
         </div>
 
-        <!-- Change Credentials -->
+
         <div class="section" id="credentials-section">
             <h2>🔐 Change Credentials</h2>
 
@@ -384,7 +384,7 @@
                 if (!result.success) throw new Error(result.error);
 
                 showToast('SMTP settings saved!');
-                // Reload to update smtp_configured state
+
                 await loadSettings();
             } catch (e) {
                 showToast('Failed to save: ' + e.message, true);

@@ -1,10 +1,3 @@
-"""
-SSH key management — filesystem-based storage for uploaded private keys.
-
-Keys are stored in a configurable directory (default: data/ssh_keys/).
-Each key gets a user-assigned label and is saved as <label>.pem with mode 0o600.
-"""
-
 import json
 import os
 import time
@@ -42,15 +35,6 @@ def _key_file_path(label: str) -> str:
 
 
 def save_key(label: str, key_bytes: bytes) -> str:
-    """Save an SSH private key and return the file path.
-
-    Args:
-        label: Human-readable name, e.g. "work-laptop"
-        key_bytes: Raw bytes of the private key file
-
-    Returns:
-        Absolute path of the saved key file.
-    """
     _ensure_dir()
     path = _key_file_path(label)
     with open(path, "wb") as f:
@@ -68,7 +52,6 @@ def save_key(label: str, key_bytes: bytes) -> str:
 
 
 def list_keys() -> List[Dict]:
-    """Return list of ``{label, filename, uploaded_at}``."""
     meta = _load_meta()
     result = []
     for label, info in meta.items():
@@ -83,7 +66,6 @@ def list_keys() -> List[Dict]:
 
 
 def delete_key(label: str) -> bool:
-    """Delete a key by label.  Returns True if it existed."""
     path = _key_file_path(label)
     existed = False
     if os.path.exists(path):

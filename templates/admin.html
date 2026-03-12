@@ -193,7 +193,7 @@
             flex-wrap: wrap;
         }
 
-        /* Modal */
+
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -303,7 +303,7 @@
             color: #8b949e;
         }
 
-        /* Params Editor */
+
         .params-editor {
             border: 1px solid #30363d;
             border-radius: 6px;
@@ -623,7 +623,7 @@
         </div>
     </div>
 
-    <!-- Modal -->
+
     <div class="modal-overlay" id="modal">
         <div class="modal">
             <div class="modal-header">
@@ -633,23 +633,23 @@
             <div class="modal-body">
                 <form id="prompt-form" onsubmit="return false;">
                     <input type="hidden" id="prompt-id">
-                    
+
                     <div class="form-group">
                         <label for="prompt-name">Name</label>
                         <input type="text" id="prompt-name" required placeholder="e.g., Sequential Thinking">
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="prompt-slug">Slug</label>
                         <input type="text" id="prompt-slug" required placeholder="e.g., sequential-thinking" pattern="[a-z0-9_-]+">
                         <div class="form-hint">Lowercase letters, numbers, hyphens, underscores only</div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="prompt-description">Description</label>
                         <input type="text" id="prompt-description" placeholder="Brief description of this prompt">
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Groups</label>
                         <div class="tag-input-container" id="group-tag-container" onclick="document.getElementById('group-tag-input').focus()">
@@ -658,13 +658,13 @@
                         </div>
                         <div class="form-hint">Optional. Type to search existing groups or create new ones. Press Enter to add.</div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="prompt-template">Template</label>
                         <textarea id="prompt-template" required placeholder="Your prompt text here. Use {param_name} for dynamic values."></textarea>
                         <div class="form-hint">Use {param_name} for placeholders. For computed params, use randomInt(min, max) in formulas.</div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Parameters</label>
                         <div class="params-editor">
@@ -704,15 +704,15 @@
         function renderPrompts() {
             const cardsContainer = document.getElementById('cards-view');
             const emptyState = document.getElementById('empty-state');
-            
+
             if (prompts.length === 0) {
                 cardsContainer.innerHTML = '';
                 emptyState.style.display = 'block';
                 return;
             }
-            
+
             emptyState.style.display = 'none';
-            
+
             cardsContainer.innerHTML = prompts.map(p => `
                 <div class="prompt-card">
                     <div class="card-header">
@@ -761,13 +761,13 @@
             try {
                 const response = await fetch('/api/groups');
                 if (response.ok) allGroups = await response.json();
-            } catch (e) { /* ignore */ }
+            } catch (e) {  }
         }
 
-        // --- Tag Input Logic ---
+
         function renderGroupTags() {
             const container = document.getElementById('group-tag-container');
-            // Remove existing tag elements
+
             container.querySelectorAll('.group-tag').forEach(el => el.remove());
             const input = document.getElementById('group-tag-input');
             selectedGroupTags.forEach((tag, idx) => {
@@ -854,7 +854,7 @@
             return false;
         }
 
-        // Wire up the tag input events
+
         document.addEventListener('DOMContentLoaded', () => {
             const input = document.getElementById('group-tag-input');
 
@@ -912,7 +912,7 @@
         async function editPrompt(id) {
             const prompt = prompts.find(p => p.id === id);
             if (!prompt) return;
-            
+
             editingId = id;
             document.getElementById('modal-title').textContent = 'Edit Prompt';
             document.getElementById('prompt-id').value = id;
@@ -923,13 +923,13 @@
             renderGroupTags();
             document.getElementById('group-tag-input').value = '';
             document.getElementById('prompt-template').value = prompt.template;
-            
+
             const paramsList = document.getElementById('params-list');
             paramsList.innerHTML = '';
             if (prompt.params) {
                 prompt.params.forEach(param => addParam(param));
             }
-            
+
             document.getElementById('modal').classList.add('visible');
         }
 
@@ -938,7 +938,7 @@
             const formulaField = paramItem.querySelector('.param-formula-field');
             const dependsField = paramItem.querySelector('.param-depends-field');
             const defaultField = paramItem.querySelector('.param-default-field');
-            
+
             if (selectEl.value === 'computed') {
                 formulaField.classList.add('visible');
                 dependsField.classList.add('visible');
@@ -954,9 +954,9 @@
             const list = document.getElementById('params-list');
             const div = document.createElement('div');
             div.className = 'param-item';
-            
+
             const isComputed = param?.type === 'computed';
-            
+
             div.innerHTML = `
                 <div class="param-field">
                     <label>Parameter Key</label>
@@ -999,14 +999,14 @@
             items.forEach(item => {
                 const name = item.querySelector('.param-name').value.trim();
                 const type = item.querySelector('.param-type').value;
-                
+
                 if (name) {
                     const param = {
                         name: name,
                         label: item.querySelector('.param-label').value.trim() || name,
                         type: type,
                     };
-                    
+
                     if (type === 'computed') {
                         param.formula = item.querySelector('.param-formula').value.trim();
                         const dependsStr = item.querySelector('.param-depends').value.trim();
@@ -1014,7 +1014,7 @@
                     } else {
                         param.default = item.querySelector('.param-default').value;
                     }
-                    
+
                     params.push(param);
                 }
             });
@@ -1042,7 +1042,7 @@
 
                 const result = await response.json();
                 if (!result.success) throw new Error(result.error);
-                
+
                 showToast(editingId ? '✅ Prompt updated!' : '✅ Prompt created!');
                 closeModal();
                 fetchPrompts();

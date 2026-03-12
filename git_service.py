@@ -21,9 +21,9 @@ from typing import Any, Dict, Generator, List, Optional, Set, Tuple
 import git
 import requests
 
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
+
+
+
 
 _SHA1_RE = re.compile(r"^[0-9a-fA-F]{40}$")
 
@@ -81,7 +81,7 @@ def _parse_github_url(remote_repo_url: str) -> Optional[Tuple[str, str]]:
     return None
 
 
-# -- semver / tag sorting ---------------------------------------------------
+
 
 def _semver_key_for_sort(tag_name: str) -> Optional[Tuple[int, int, int, Tuple]]:
     m = re.match(
@@ -115,7 +115,7 @@ def _tag_sort_key(tag_name: str) -> Tuple:
     return (1, tag_name.lower())
 
 
-# -- subprocess wrappers ----------------------------------------------------
+
 
 def _run_git_capture(
     repo: git.Repo,
@@ -178,7 +178,7 @@ def _run_git_capture_cwd(
     return p.stdout
 
 
-# -- for-each-ref tags helper -----------------------------------------------
+
 
 def _for_each_ref_tags(repo: git.Repo) -> List[Dict]:
     SEP = "<%~%>"
@@ -265,7 +265,7 @@ def _for_each_ref_tags(repo: git.Repo) -> List[Dict]:
     return results
 
 
-# -- archive fetching -------------------------------------------------------
+
 
 def _fetch_remote_archive_bytes(
     remote_repo_url: str,
@@ -425,7 +425,7 @@ def _iterate_tar_members_from_bytes(
         raise
 
 
-# -- shallow clone helpers ---------------------------------------------------
+
 
 def _shallow_clone_for_ref_info(
     remote_url: str,
@@ -471,7 +471,7 @@ def _shallow_clone_for_ref_info(
     return tmp_dir, git.Repo(tmp_dir)
 
 
-# -- common prefix stripping ------------------------------------------------
+
 
 def _detect_common_prefix(archive_bytes: bytes, is_gzipped: bool) -> str:
     temp_paths = [
@@ -487,9 +487,9 @@ def _detect_common_prefix(archive_bytes: bytes, is_gzipped: bool) -> str:
     return ""
 
 
-# ===========================================================================
-# PUBLIC API
-# ===========================================================================
+
+
+
 
 def get_refs_detailed(
     remote_repo_url: str,
@@ -505,7 +505,7 @@ def get_refs_detailed(
             remote_repo_url, ssh_key_path=ssh_key_path
         )
 
-        # ---- branches ----
+
         SEP = "<%~%>"
         branch_fmt_fields = [
             "%(refname:short)",
@@ -539,7 +539,7 @@ def get_refs_detailed(
                 "commit_subject": parts[5].strip(),
             })
 
-        # ---- tags ----
+
         tag_rows = _for_each_ref_tags(tmp_repo)
         tag_rows.sort(key=lambda d: _tag_sort_key(d["name"]))
 

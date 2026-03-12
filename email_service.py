@@ -7,7 +7,6 @@ from email.mime.multipart import MIMEMultipart
 
 
 def _get_smtp_config_from_db():
-    """Read SMTP settings from AppSettings table."""
     from models import AppSettings
     host = AppSettings.get('smtp_host', '')
     port = AppSettings.get('smtp_port', '587')
@@ -24,13 +23,11 @@ def _get_smtp_config_from_db():
 
 
 def is_smtp_configured():
-    """Check if SMTP has been configured with at least host, user, password, and reset_email."""
     cfg = _get_smtp_config_from_db()
     return all([cfg['host'], cfg['user'], cfg['password'], cfg['reset_email']])
 
 
 def _send_email(to_addr, subject, html_body):
-    """Send an email using the stored SMTP config."""
     cfg = _get_smtp_config_from_db()
     if not all([cfg['host'], cfg['user'], cfg['password']]):
         raise ValueError('SMTP is not configured')
@@ -58,7 +55,6 @@ def _send_email(to_addr, subject, html_body):
 
 
 def send_reset_email(reset_url):
-    """Send a password-reset email to the configured reset address."""
     cfg = _get_smtp_config_from_db()
     to_addr = cfg['reset_email']
     if not to_addr:

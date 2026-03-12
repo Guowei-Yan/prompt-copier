@@ -79,7 +79,6 @@ def update_prompt(
 
 
 def delete_prompt(prompt_id: int) -> bool:
-    """Delete a prompt."""
     prompt = get_prompt_by_id(prompt_id)
     if not prompt:
         return False

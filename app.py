@@ -24,7 +24,7 @@ reset_serializer = URLSafeTimedSerializer(SECRET_KEY)
 
 with app.app_context():
     db.create_all()
-    # Migrate: add group_name column if it doesn't exist (for existing DBs)
+
     from sqlalchemy import inspect as sa_inspect, text
     inspector = sa_inspect(db.engine)
     columns = [col['name'] for col in inspector.get_columns('prompts')]
@@ -33,7 +33,7 @@ with app.app_context():
             conn.execute(text("ALTER TABLE prompts ADD COLUMN group_name VARCHAR(100) DEFAULT '' NOT NULL"))
             conn.commit()
 
-    # Seed credentials from env vars on first run only
+
     if not AppSettings.get('auth_username'):
         AppSettings.set('auth_username', AUTH_USERNAME)
         AppSettings.set('auth_password', generate_password_hash(AUTH_PASSWORD))
@@ -211,7 +211,6 @@ def api_reset_credentials():
 def api_config():
     return jsonify(prompt_service.get_prompt_config())
 
-
 @app.route('/api/generate', methods=['POST'])
 @requires_auth
 def api_generate():
@@ -298,7 +297,6 @@ def api_update_prompt(prompt_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-
 @app.route('/api/prompts/<int:prompt_id>', methods=['DELETE'])
 @requires_auth
 def api_delete_prompt(prompt_id):
@@ -354,18 +352,10 @@ def api_delete_saved_params():
 def api_groups():
     return jsonify(prompt_service.get_all_groups())
 
-
-# ---------------------------------------------------------------------------
-# Git Explorer
-# ---------------------------------------------------------------------------
-
 @app.route('/git')
 @requires_auth
 def git_explorer():
     return render_template('git_explorer.html')
-
-
-# ---- SSH Key Management ----
 
 @app.route('/api/git/ssh-keys', methods=['GET'])
 @requires_auth
@@ -395,9 +385,6 @@ def api_delete_ssh_key(label):
     if ssh_keys.delete_key(label):
         return jsonify({'success': True})
     return jsonify({'success': False, 'error': 'Key not found'}), 404
-
-
-# ---- Git Operations ----
 
 def _resolve_ssh_key(data: dict):
     """Return ssh_key_path from request data or None."""
@@ -496,9 +483,6 @@ def api_git_files_by_path():
     except Exception as e:
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
-
-
-# ---- Saved Repos ----
 
 @app.route('/api/git/repos', methods=['GET'])
 @requires_auth

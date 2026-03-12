@@ -65,7 +65,7 @@
             border-color: #58a6ff;
         }
 
-        /* Sections / Cards */
+
         .section {
             background-color: #161b22;
             border: 1px solid #30363d;
@@ -104,7 +104,7 @@
             transform: rotate(-90deg);
         }
 
-        /* Form elements */
+
         .form-row {
             display: flex;
             gap: 0.75rem;
@@ -169,7 +169,7 @@
             padding-right: 1.75rem;
         }
 
-        /* Buttons */
+
         .btn {
             padding: 0.5rem 1rem;
             border: none;
@@ -222,7 +222,7 @@
             font-size: 0.75rem;
         }
 
-        /* Tabs */
+
         .tab-bar {
             display: flex;
             gap: 0;
@@ -250,7 +250,7 @@
             border-bottom-color: #58a6ff;
         }
 
-        /* Table */
+
         .table-wrap {
             overflow-x: auto;
             border: 1px solid #30363d;
@@ -305,7 +305,7 @@
             color: #8b949e;
         }
 
-        /* Output */
+
         .output-area {
             background-color: #0d1117;
             border: 1px solid #30363d;
@@ -331,7 +331,7 @@
             font-style: italic;
         }
 
-        /* SSH key tags */
+
         .key-list {
             display: flex;
             flex-wrap: wrap;
@@ -365,7 +365,7 @@
             color: #ff7b72;
         }
 
-        /* Loading spinner */
+
         .spinner {
             display: inline-block;
             width: 14px;
@@ -384,7 +384,7 @@
             }
         }
 
-        /* Checkbox */
+
         .checkbox-group {
             display: flex;
             align-items: center;
@@ -403,7 +403,7 @@
             cursor: pointer;
         }
 
-        /* Toast */
+
         .toast {
             position: fixed;
             bottom: 2rem;
@@ -427,7 +427,7 @@
             background-color: #da3633;
         }
 
-        /* Rows count selector */
+
         .rows-control {
             display: flex;
             align-items: center;
@@ -444,7 +444,7 @@
             min-width: 70px;
         }
 
-        /* Saved repos */
+
         .repo-list {
             display: flex;
             flex-direction: column;
@@ -514,7 +514,7 @@
             padding: 0.5rem 0;
         }
 
-        /* Responsive */
+
         @media (max-width: 768px) {
             body {
                 padding: 1rem;
@@ -567,7 +567,7 @@
             </div>
         </header>
 
-        <!-- ==================== Saved Repos Section ==================== -->
+
         <div class="section" id="saved-repos-section">
             <div class="section-header" onclick="toggleSection('saved-repos-section')">
                 <h2>📚 Saved Repos</h2>
@@ -580,7 +580,7 @@
             </div>
         </div>
 
-        <!-- ==================== Config Section ==================== -->
+
         <div class="section" id="config-section">
             <div class="section-header" onclick="toggleSection('config-section')">
                 <h2>🔧 Repository & SSH Config</h2>
@@ -605,7 +605,7 @@
                     </div>
                 </div>
 
-                <!-- SSH Key Upload -->
+
                 <details style="margin-top:0.5rem">
                     <summary
                         style="font-size:0.75rem;color:#8b949e;cursor:pointer;user-select:none;margin-bottom:0.5rem">
@@ -630,7 +630,7 @@
             </div>
         </div>
 
-        <!-- ==================== Refs Section ==================== -->
+
         <div class="section collapsed" id="refs-section">
             <div class="section-header" onclick="toggleSection('refs-section')">
                 <h2>📊 Branches & Tags</h2>
@@ -664,7 +664,7 @@
             </div>
         </div>
 
-        <!-- ==================== Structure Section ==================== -->
+
         <div class="section collapsed" id="structure-section">
             <div class="section-header" onclick="toggleSection('structure-section')">
                 <h2>📁 Directory Structure</h2>
@@ -704,7 +704,7 @@
             </div>
         </div>
 
-        <!-- ==================== Files Section ==================== -->
+
         <div class="section collapsed" id="files-section">
             <div class="section-header" onclick="toggleSection('files-section')">
                 <h2>📄 File Contents</h2>
@@ -716,7 +716,7 @@
                     <button class="tab-btn" onclick="switchFilesTab('paths')">By Path List</button>
                 </div>
 
-                <!-- By Pattern -->
+
                 <div id="files-pattern-panel">
                     <div class="form-row">
                         <div class="form-group">
@@ -749,7 +749,7 @@
                     </div>
                 </div>
 
-                <!-- By Path List -->
+
                 <div id="files-paths-panel" style="display:none">
                     <div class="form-row">
                         <div class="form-group">
@@ -783,18 +783,18 @@
     <div class="toast" id="toast"></div>
 
     <script>
-        // ===== State =====
+
         let refsData = { branches: [], tags: [] };
         let activeRefsTab = 'branches';
         let activeFilesTab = 'pattern';
         let savedRepos = [];
 
-        // ===== Section toggle =====
+
         function toggleSection(id) {
             document.getElementById(id).classList.toggle('collapsed');
         }
 
-        // ===== Toast =====
+
         function showToast(msg, isError = false) {
             const t = document.getElementById('toast');
             t.textContent = msg;
@@ -802,7 +802,7 @@
             setTimeout(() => t.classList.remove('visible'), 4000);
         }
 
-        // ===== SSH Keys =====
+
         async function loadKeys() {
             try {
                 const res = await fetch('/api/git/ssh-keys');
@@ -816,7 +816,7 @@
         function renderKeys(keys) {
             const sel = document.getElementById('ssh-key-select');
             const list = document.getElementById('key-list');
-            // keep existing selection
+
             const prev = sel.value;
             sel.innerHTML = '<option value="">None (public)</option>';
             keys.forEach(k => {
@@ -872,7 +872,7 @@
             }
         }
 
-        // ===== Refs =====
+
         function getCommonPayload() {
             return {
                 url: document.getElementById('repo-url').value.trim(),
@@ -901,7 +901,7 @@
                 populateRefSelectors();
                 showToast(`Found ${refsData.branches.length} branch(es), ${refsData.tags.length} tag(s)`);
 
-                // Auto-save the repo
+
                 saveRepo(url, ssh_key_label || '');
             } catch (e) {
                 showToast('Fetch refs failed: ' + e.message, true);
@@ -928,7 +928,7 @@
             const isBranches = activeRefsTab === 'branches';
             const data = isBranches ? refsData.branches : refsData.tags;
 
-            // Update badges
+
             document.getElementById('branch-count-badge').textContent =
                 refsData.branches.length ? `(${refsData.branches.length})` : '';
             document.getElementById('tag-count-badge').textContent =
@@ -987,7 +987,7 @@
             });
         }
 
-        // ===== Structure =====
+
         async function fetchStructure() {
             const btn = document.getElementById('btn-structure');
             const out = document.getElementById('structure-output');
@@ -1029,7 +1029,7 @@
             }
         }
 
-        // ===== Files =====
+
         function switchFilesTab(tab) {
             activeFilesTab = tab;
             document.querySelectorAll('#files-section .tab-btn').forEach((b, i) => {
@@ -1119,7 +1119,7 @@
             }
         }
 
-        // ===== Helpers =====
+
         function escHtml(s) {
             const d = document.createElement('div');
             d.textContent = s || '';
@@ -1138,7 +1138,7 @@
             } catch { return d; }
         }
 
-        // ===== Saved Repos =====
+
         async function loadSavedRepos() {
             try {
                 const res = await fetch('/api/git/repos');
@@ -1213,7 +1213,7 @@
             return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         }
 
-        // ===== Init =====
+
         loadKeys();
         loadSavedRepos();
     </script>
