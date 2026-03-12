@@ -444,6 +444,76 @@
             min-width: 70px;
         }
 
+        /* Saved repos */
+        .repo-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.375rem;
+        }
+
+        .repo-item {
+            display: flex;
+            align-items: center;
+            gap: 0.625rem;
+            padding: 0.5rem 0.75rem;
+            background-color: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .repo-item:hover {
+            border-color: #58a6ff;
+            background-color: #161b22;
+        }
+
+        .repo-item .repo-url {
+            flex: 1;
+            font-size: 0.8125rem;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            color: #58a6ff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .repo-item .repo-meta {
+            font-size: 0.6875rem;
+            color: #8b949e;
+            white-space: nowrap;
+        }
+
+        .repo-item .repo-key-badge {
+            font-size: 0.6875rem;
+            color: #8b949e;
+            background-color: #21262d;
+            padding: 0.125rem 0.375rem;
+            border-radius: 3px;
+        }
+
+        .repo-item .repo-del {
+            background: none;
+            border: none;
+            color: #484f58;
+            cursor: pointer;
+            font-size: 0.875rem;
+            padding: 0;
+            line-height: 1;
+            transition: color 0.15s;
+        }
+
+        .repo-item .repo-del:hover {
+            color: #f85149;
+        }
+
+        .empty-state {
+            font-size: 0.8125rem;
+            color: #484f58;
+            font-style: italic;
+            padding: 0.5rem 0;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             body {
@@ -496,6 +566,19 @@
                 <a href="/api/logout" class="nav-link">Logout</a>
             </div>
         </header>
+
+        <!-- ==================== Saved Repos Section ==================== -->
+        <div class="section" id="saved-repos-section">
+            <div class="section-header" onclick="toggleSection('saved-repos-section')">
+                <h2>📚 Saved Repos</h2>
+                <span class="section-toggle">▾</span>
+            </div>
+            <div class="section-body">
+                <div class="repo-list" id="repo-list">
+                    <div class="empty-state">No saved repos yet. Fetch refs from a repo to save it.</div>
+                </div>
+            </div>
+        </div>
 
         <!-- ==================== Config Section ==================== -->
         <div class="section" id="config-section">
@@ -704,6 +787,7 @@
         let refsData = { branches: [], tags: [] };
         let activeRefsTab = 'branches';
         let activeFilesTab = 'pattern';
+        let savedRepos = [];
 
         // ===== Section toggle =====
         function toggleSection(id) {
@@ -816,6 +900,9 @@
                 renderRefsTable();
                 populateRefSelectors();
                 showToast(`Found ${refsData.branches.length} branch(es), ${refsData.tags.length} tag(s)`);
+
+                // Auto-save the repo
+                saveRepo(url, ssh_key_label || '');
             } catch (e) {
                 showToast('Fetch refs failed: ' + e.message, true);
             } finally {
@@ -1051,8 +1138,84 @@
             } catch { return d; }
         }
 
+        // ===== Saved Repos =====
+        async function loadSavedRepos() {
+            try {
+                const res = await fetch('/api/git/repos');
+                savedRepos = await res.json();
+                renderSavedRepos();
+            } catch (e) {
+                console.error('Failed to load saved repos', e);
+            }
+        }
+
+        function renderSavedRepos() {
+            const list = document.getElementById('repo-list');
+            if (!savedRepos.length) {
+                list.innerHTML = '<div class="empty-state">No saved repos yet. Fetch refs from a repo to save it.</div>';
+                return;
+            }
+            list.innerHTML = savedRepos.map(r => {
+                const displayUrl = r.url.replace(/^https?:\/\//, '').replace(/\.git$/, '');
+                const keyBadge = r.ssh_key_label
+                    ? `<span class="repo-key-badge">🔑 ${escHtml(r.ssh_key_label)}</span>`
+                    : '';
+                return `<div class="repo-item" onclick="selectRepo(${r.id})">
+                    <span class="repo-url" title="${escAttr(r.url)}">${escHtml(displayUrl)}</span>
+                    ${keyBadge}
+                    <span class="repo-meta">${timeAgo(r.last_used_at)}</span>
+                    <button class="repo-del" onclick="event.stopPropagation(); deleteRepo(${r.id})" title="Remove">✕</button>
+                </div>`;
+            }).join('');
+        }
+
+        function selectRepo(id) {
+            const r = savedRepos.find(x => x.id === id);
+            if (!r) return;
+            document.getElementById('repo-url').value = r.url;
+            if (r.ssh_key_label) {
+                document.getElementById('ssh-key-select').value = r.ssh_key_label;
+            } else {
+                document.getElementById('ssh-key-select').value = '';
+            }
+            showToast('Repo loaded — click Fetch Refs to get branches & tags');
+        }
+
+        async function saveRepo(url, ssh_key_label) {
+            try {
+                await fetch('/api/git/repos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, ssh_key_label }),
+                });
+                loadSavedRepos();
+            } catch (e) {
+                console.error('Failed to save repo', e);
+            }
+        }
+
+        async function deleteRepo(id) {
+            try {
+                await fetch(`/api/git/repos/${id}`, { method: 'DELETE' });
+                loadSavedRepos();
+            } catch (e) {
+                showToast('Delete failed: ' + e.message, true);
+            }
+        }
+
+        function timeAgo(iso) {
+            if (!iso) return '';
+            const diff = (Date.now() - new Date(iso + 'Z').getTime()) / 1000;
+            if (diff < 60) return 'just now';
+            if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+            if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+            if (diff < 2592000) return Math.floor(diff / 86400) + 'd ago';
+            return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+
         // ===== Init =====
         loadKeys();
+        loadSavedRepos();
     </script>
 </body>
 

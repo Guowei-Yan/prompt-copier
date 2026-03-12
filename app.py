@@ -1,12 +1,12 @@
 import os
-from datetime import timedelta
+from datetime import datetime, timedelta
 from functools import wraps
 import traceback
 from flask import Flask, request, jsonify, render_template, redirect, url_for, session
 from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from config import AUTH_USERNAME, AUTH_PASSWORD, SECRET_KEY, SQLALCHEMY_DATABASE_URI
-from models import db, Prompt, AppSettings
+from models import db, Prompt, AppSettings, SavedRepo
 import prompts as prompt_service
 import git_service
 import ssh_keys
@@ -496,6 +496,51 @@ def api_git_files_by_path():
     except Exception as e:
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ---- Saved Repos ----
+
+@app.route('/api/git/repos', methods=['GET'])
+@requires_auth
+def api_list_saved_repos():
+    repos = SavedRepo.query.order_by(SavedRepo.last_used_at.desc()).all()
+    return jsonify([r.to_dict() for r in repos])
+
+
+@app.route('/api/git/repos', methods=['POST'])
+@requires_auth
+def api_save_repo():
+    data = request.get_json()
+    url = (data.get('url') or '').strip()
+    if not url:
+        return jsonify({'success': False, 'error': 'URL is required'}), 400
+
+    repo = SavedRepo.query.filter_by(url=url).first()
+    if repo:
+        repo.ssh_key_label = data.get('ssh_key_label', repo.ssh_key_label)
+        if data.get('label'):
+            repo.label = data['label']
+        repo.last_used_at = datetime.utcnow()
+    else:
+        repo = SavedRepo(
+            url=url,
+            label=data.get('label', ''),
+            ssh_key_label=data.get('ssh_key_label', ''),
+        )
+        db.session.add(repo)
+    db.session.commit()
+    return jsonify({'success': True, 'repo': repo.to_dict()})
+
+
+@app.route('/api/git/repos/<int:repo_id>', methods=['DELETE'])
+@requires_auth
+def api_delete_saved_repo(repo_id):
+    repo = SavedRepo.query.get(repo_id)
+    if not repo:
+        return jsonify({'success': False, 'error': 'Repo not found'}), 404
+    db.session.delete(repo)
+    db.session.commit()
+    return jsonify({'success': True})
 
 
 if __name__ == '__main__':

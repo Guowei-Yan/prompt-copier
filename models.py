@@ -116,3 +116,24 @@ class AppSettings(db.Model):
             row = AppSettings(key=key, value=value)
             db.session.add(row)
         db.session.commit()
+
+
+class SavedRepo(db.Model):
+    __tablename__ = 'saved_repos'
+
+    id = db.Column(db.Integer, primary_key=True)
+    url = db.Column(db.String(500), nullable=False, unique=True)
+    label = db.Column(db.String(200), default='')
+    ssh_key_label = db.Column(db.String(100), default='')
+    last_used_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'url': self.url,
+            'label': self.label,
+            'ssh_key_label': self.ssh_key_label,
+            'last_used_at': self.last_used_at.isoformat() if self.last_used_at else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
