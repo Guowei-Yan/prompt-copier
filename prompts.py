@@ -1,4 +1,4 @@
-from models import db, Prompt
+from models import db, Prompt, SavedParams
 from typing import Dict, Any, List, Optional
 
 
@@ -148,3 +148,51 @@ def get_prompt_config() -> Dict[str, Any]:
         }
     
     return result
+
+
+def get_all_saved_params() -> Dict[str, Dict[str, str]]:
+    rows = SavedParams.query.all()
+    result = {}
+    for r in rows:
+        key = r.group_key
+        if key not in result:
+            result[key] = {}
+        result[key][f"{r.slug}.{r.param_name}"] = r.param_value
+    return result
+
+
+def save_params(group_key: str, values: Dict[str, str]) -> None:
+    for composite_key, value in values.items():
+        parts = composite_key.split('.', 1)
+        if len(parts) != 2:
+            continue
+        slug, param_name = parts
+
+        existing = SavedParams.query.filter_by(
+            group_key=group_key,
+            slug=slug,
+            param_name=param_name,
+        ).first()
+
+        if existing:
+            existing.param_value = value
+        else:
+            row = SavedParams(
+                group_key=group_key,
+                slug=slug,
+                param_name=param_name,
+                param_value=value,
+            )
+            db.session.add(row)
+
+    db.session.commit()
+
+
+def delete_saved_params(group_key: str, slug: str) -> bool:
+    rows = SavedParams.query.filter_by(group_key=group_key, slug=slug).all()
+    if not rows:
+        return False
+    for r in rows:
+        db.session.delete(r)
+    db.session.commit()
+    return True

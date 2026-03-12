@@ -72,3 +72,25 @@ class Prompt(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
+
+
+class SavedParams(db.Model):
+    __tablename__ = 'saved_params'
+
+    id = db.Column(db.Integer, primary_key=True)
+    group_key = db.Column(db.String(500), nullable=False)
+    slug = db.Column(db.String(100), nullable=False)
+    param_name = db.Column(db.String(100), nullable=False)
+    param_value = db.Column(db.Text, default='')
+
+    __table_args__ = (
+        db.UniqueConstraint('group_key', 'slug', 'param_name', name='uq_saved_params'),
+    )
+
+    def to_dict(self):
+        return {
+            'group_key': self.group_key,
+            'slug': self.slug,
+            'param_name': self.param_name,
+            'param_value': self.param_value,
+        }

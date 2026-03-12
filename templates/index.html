@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -150,7 +151,8 @@
             color: #8b949e;
         }
 
-        .param-group input, .param-group textarea {
+        .param-group input,
+        .param-group textarea {
             width: 100%;
             padding: 0.5rem;
             background-color: #0d1117;
@@ -174,7 +176,8 @@
             resize: vertical;
         }
 
-        .param-group input:focus, .param-group textarea:focus {
+        .param-group input:focus,
+        .param-group textarea:focus {
             outline: none;
             border-color: #58a6ff;
         }
@@ -193,10 +196,15 @@
             transition: background-color 0.2s;
         }
 
+        .btn-row {
+            display: flex;
+            gap: 0.5rem;
+        }
+
         .btn-primary {
             background-color: #238636;
             color: #ffffff;
-            width: 100%;
+            flex: 1;
         }
 
         .btn-primary:hover {
@@ -205,6 +213,18 @@
 
         .btn-primary.copied {
             background-color: #58a6ff;
+        }
+
+        .btn-reset {
+            background-color: #21262d;
+            color: #8b949e;
+            border: 1px solid #30363d;
+            white-space: nowrap;
+        }
+
+        .btn-reset:hover {
+            background-color: #30363d;
+            color: #c9d1d9;
         }
 
         .preview-container {
@@ -383,6 +403,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <header>
@@ -407,17 +428,102 @@
     <script>
         let promptConfig = null;
         let selectedGroups = new Set();
+        let savedParamsCache = {};
+        let saveDebounceTimer = null;
 
         async function fetchConfig() {
             try {
-                const response = await fetch('/api/config');
-                if (!response.ok) throw new Error('Failed to fetch config');
-                promptConfig = await response.json();
+                const [configRes, savedRes] = await Promise.all([
+                    fetch('/api/config'),
+                    fetch('/api/saved-params'),
+                ]);
+                if (!configRes.ok) throw new Error('Failed to fetch config');
+                promptConfig = await configRes.json();
+                if (savedRes.ok) {
+                    savedParamsCache = await savedRes.json();
+                }
                 renderFilterBar();
                 renderPrompts();
             } catch (error) {
                 showToast('Failed to load prompts: ' + error.message, true);
             }
+        }
+
+        function getGroupKey() {
+            if (selectedGroups.size === 0) return '__all__';
+            return [...selectedGroups].sort().join(',');
+        }
+
+        function saveParamValues() {
+            if (!promptConfig) return;
+            const groupKey = getGroupKey();
+            const values = {};
+            document.querySelectorAll('[data-prompt-slug]').forEach(card => {
+                const slug = card.dataset.promptSlug;
+                card.querySelectorAll('[data-param]').forEach(input => {
+                    const paramName = input.dataset.param;
+                    values[`${slug}.${paramName}`] = input.value;
+                });
+            });
+            savedParamsCache[groupKey] = values;
+
+            clearTimeout(saveDebounceTimer);
+            saveDebounceTimer = setTimeout(() => {
+                fetch('/api/saved-params', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ group_key: groupKey, values }),
+                }).catch(() => { });
+            }, 500);
+        }
+
+        function restoreParamValues() {
+            const groupKey = getGroupKey();
+            const saved = savedParamsCache[groupKey];
+            if (!saved) return;
+            document.querySelectorAll('[data-prompt-slug]').forEach(card => {
+                const slug = card.dataset.promptSlug;
+                card.querySelectorAll('[data-param]').forEach(input => {
+                    const key = `${slug}.${input.dataset.param}`;
+                    if (key in saved) {
+                        input.value = saved[key];
+                        // Trigger auto-resize for textareas
+                        if (input.tagName === 'TEXTAREA' && input.classList.contains('auto-resize')) {
+                            autoResize(input);
+                        }
+                    }
+                });
+            });
+        }
+
+        function resetPromptParams(slug) {
+            const card = document.querySelector(`[data-prompt-slug="${slug}"]`);
+            if (!card || !promptConfig[slug]) return;
+            const prompt = promptConfig[slug];
+
+            (prompt.params || []).forEach(param => {
+                if (param.type === 'computed') return;
+                const input = card.querySelector(`[data-param="${param.name}"]`);
+                if (input) {
+                    input.value = param.default || '';
+                    if (input.tagName === 'TEXTAREA' && input.classList.contains('auto-resize')) {
+                        autoResize(input);
+                    }
+                }
+            });
+
+            const groupKey = getGroupKey();
+            if (savedParamsCache[groupKey]) {
+                (prompt.params || []).forEach(param => {
+                    delete savedParamsCache[groupKey][`${slug}.${param.name}`];
+                });
+            }
+
+            fetch(`/api/saved-params?group_key=${encodeURIComponent(groupKey)}&slug=${encodeURIComponent(slug)}`, {
+                method: 'DELETE',
+            }).catch(() => { });
+
+            showToast('Parameters reset to defaults');
         }
 
         function renderFilterBar() {
@@ -438,7 +544,7 @@
             bar.innerHTML = `<button class="filter-btn${selectedGroups.size === 0 ? ' active' : ''}" onclick="clearGroups()">All</button>` +
                 sorted.map(g => {
                     const isActive = selectedGroups.has(g);
-                    return `<button class="filter-btn${isActive ? ' active' : ''}" onclick="toggleGroup('${g.replace(/'/g, "\\'")}')">`  +
+                    return `<button class="filter-btn${isActive ? ' active' : ''}" onclick="toggleGroup('${g.replace(/'/g, "\\'")}')">` +
                         escapeHtml(g) + `</button>`;
                 }).join('');
         }
@@ -485,14 +591,14 @@
             const sorted = [];
             const remaining = [...params];
             const added = new Set();
-            
+
             for (const param of params) {
                 if (param.type !== 'computed') {
                     sorted.push(param);
                     added.add(param.name);
                 }
             }
-            
+
             let iterations = 0;
             while (remaining.length > sorted.length && iterations < 100) {
                 for (const param of remaining) {
@@ -506,14 +612,14 @@
                 }
                 iterations++;
             }
-            
+
             return sorted;
         }
 
         function collectParams(card, params) {
             const values = {};
             const sortedParams = sortParams(params);
-            
+
             for (const param of sortedParams) {
                 if (param.type !== 'computed') {
                     const input = card.querySelector(`[data-param="${param.name}"]`);
@@ -522,13 +628,13 @@
                     }
                 }
             }
-            
+
             for (const param of sortedParams) {
                 if (param.type === 'computed' && param.formula) {
                     values[param.name] = evaluateFormula(param.formula, values);
                 }
             }
-            
+
             return values;
         }
 
@@ -536,12 +642,10 @@
             const prompt = promptConfig[slug];
             let result = prompt.template;
 
-            // Replace {param} placeholders with provided values
             for (const [key, value] of Object.entries(params)) {
                 result = result.replaceAll('{' + key + '}', String(value));
             }
 
-            // Fill remaining placeholders with defaults
             for (const param of (prompt.params || [])) {
                 const placeholder = '{' + param.name + '}';
                 if (result.includes(placeholder)) {
@@ -561,6 +665,8 @@
                 const text = generatePromptText(slug, params);
 
                 await navigator.clipboard.writeText(text);
+
+                saveParamValues();
 
                 btn.textContent = 'Copied!';
                 btn.classList.add('copied');
@@ -654,11 +760,16 @@
                         }).join('') + '</div>';
                 }
 
+                const hasVisibleParams = prompt.params && prompt.params.some(p => p.type !== 'computed' && !p.hidden);
+
                 card.innerHTML = `
                     <h3>${prompt.name}</h3>
                     <p class="description">${prompt.description || ''}</p>
                     ${paramsHtml}
-                    <button class="btn btn-primary" onclick="generateAndCopy('${slug}')">Copy</button>
+                    <div class="btn-row">
+                        <button class="btn btn-primary" onclick="generateAndCopy('${slug}')">Copy</button>
+                        ${hasVisibleParams ? `<button class="btn btn-reset" onclick="resetPromptParams('${slug}')">↺ Reset</button>` : ''}
+                    </div>
                     <div class="preview-container">
                         <button class="preview-toggle" id="toggle-${slug}" onclick="togglePreview('${slug}')">Show preview</button>
                         <div class="preview-text" id="preview-${slug}"></div>
@@ -671,7 +782,13 @@
                     ta.addEventListener('input', () => autoResize(ta));
                     autoResize(ta);
                 });
+
+                card.querySelectorAll('[data-param]').forEach(input => {
+                    input.addEventListener('input', () => saveParamValues());
+                });
             }
+
+            restoreParamValues();
         }
 
         function showToast(message, isError = false) {
@@ -684,4 +801,5 @@
         fetchConfig();
     </script>
 </body>
+
 </html>

@@ -190,6 +190,39 @@ def api_clone_prompt(prompt_id):
     return jsonify({'success': True, 'prompt': prompt.to_dict()})
 
 
+@app.route('/api/saved-params', methods=['GET'])
+@requires_auth
+def api_get_saved_params():
+    return jsonify(prompt_service.get_all_saved_params())
+
+
+@app.route('/api/saved-params', methods=['POST'])
+@requires_auth
+def api_save_params():
+    data = request.get_json()
+    group_key = data.get('group_key', '__all__')
+    values = data.get('values', {})
+
+    try:
+        prompt_service.save_params(group_key, values)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/saved-params', methods=['DELETE'])
+@requires_auth
+def api_delete_saved_params():
+    group_key = request.args.get('group_key', '__all__')
+    slug = request.args.get('slug', '')
+
+    if not slug:
+        return jsonify({'success': False, 'error': 'Missing slug parameter'}), 400
+
+    prompt_service.delete_saved_params(group_key, slug)
+    return jsonify({'success': True})
+
+
 @app.route('/api/groups')
 @requires_auth
 def api_groups():
