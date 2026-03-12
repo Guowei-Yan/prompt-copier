@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git Explorer — Prompt Copier</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background-color: #0d1117;
+            color: #c9d1d9;
+            min-height: 100vh;
+            padding: 2rem;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            color: #58a6ff;
+            font-weight: 600;
+        }
+
+        h2 {
+            color: #f0f6fc;
+            font-size: 1.125rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: #8b949e;
+            text-decoration: none;
+            font-size: 0.875rem;
+            padding: 0.5rem 1rem;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .nav-link:hover {
+            color: #58a6ff;
+            border-color: #58a6ff;
+        }
+
+        /* Sections / Cards */
+        .section {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .section-header h2 {
+            margin-bottom: 0;
+        }
+
+        .section-toggle {
+            color: #8b949e;
+            font-size: 1.25rem;
+            transition: transform 0.2s;
+        }
+
+        .section-body {
+            margin-top: 1rem;
+        }
+
+        .section.collapsed .section-body {
+            display: none;
+        }
+
+        .section.collapsed .section-toggle {
+            transform: rotate(-90deg);
+        }
+
+        /* Form elements */
+        .form-row {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            flex: 1;
+            min-width: 180px;
+        }
+
+        .form-group.sm {
+            flex: 0 0 auto;
+            min-width: 120px;
+        }
+
+        .form-group label {
+            font-size: 0.75rem;
+            color: #8b949e;
+        }
+
+        input[type="text"],
+        input[type="file"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 0.5rem 0.625rem;
+            background-color: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            color: #c9d1d9;
+            font-size: 0.875rem;
+            font-family: inherit;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 0.8125rem;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #58a6ff;
+        }
+
+        select {
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238b949e' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.5rem center;
+            background-size: 10px;
+            padding-right: 1.75rem;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background-color: #238636;
+            color: #ffffff;
+        }
+
+        .btn-primary:hover {
+            background-color: #2ea043;
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background-color: #21262d;
+            color: #c9d1d9;
+            border: 1px solid #30363d;
+        }
+
+        .btn-secondary:hover {
+            background-color: #30363d;
+        }
+
+        .btn-danger {
+            background-color: #21262d;
+            color: #f85149;
+            border: 1px solid #30363d;
+        }
+
+        .btn-danger:hover {
+            background-color: #da3633;
+            color: #ffffff;
+            border-color: #da3633;
+        }
+
+        .btn-sm {
+            padding: 0.3rem 0.625rem;
+            font-size: 0.75rem;
+        }
+
+        /* Tabs */
+        .tab-bar {
+            display: flex;
+            gap: 0;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid #30363d;
+        }
+
+        .tab-btn {
+            padding: 0.5rem 1rem;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: #8b949e;
+            font-size: 0.8125rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab-btn:hover {
+            color: #c9d1d9;
+        }
+
+        .tab-btn.active {
+            color: #58a6ff;
+            border-bottom-color: #58a6ff;
+        }
+
+        /* Table */
+        .table-wrap {
+            overflow-x: auto;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8125rem;
+        }
+
+        th,
+        td {
+            padding: 0.5rem 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #21262d;
+            white-space: nowrap;
+        }
+
+        th {
+            background-color: #161b22;
+            color: #8b949e;
+            font-weight: 500;
+            position: sticky;
+            top: 0;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        th:hover {
+            color: #c9d1d9;
+        }
+
+        tr:hover td {
+            background-color: #1c2128;
+        }
+
+        td .sha {
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            color: #58a6ff;
+            font-size: 0.75rem;
+        }
+
+        .table-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            margin-top: 0.5rem;
+            font-size: 0.75rem;
+            color: #8b949e;
+        }
+
+        /* Output */
+        .output-area {
+            background-color: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 1rem;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 0.8125rem;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 600px;
+            overflow-y: auto;
+            color: #c9d1d9;
+            display: none;
+        }
+
+        .output-area.visible {
+            display: block;
+        }
+
+        .output-area.empty-msg {
+            color: #8b949e;
+            font-family: inherit;
+            font-style: italic;
+        }
+
+        /* SSH key tags */
+        .key-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .key-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            background-color: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 50px;
+            padding: 0.25rem 0.5rem 0.25rem 0.75rem;
+            font-size: 0.75rem;
+            color: #c9d1d9;
+        }
+
+        .key-tag .del-btn {
+            background: none;
+            border: none;
+            color: #f85149;
+            cursor: pointer;
+            font-size: 0.875rem;
+            padding: 0 0.125rem;
+            line-height: 1;
+        }
+
+        .key-tag .del-btn:hover {
+            color: #ff7b72;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #30363d;
+            border-top-color: #58a6ff;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-right: 0.375rem;
+            vertical-align: text-bottom;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Checkbox */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding-bottom: 0.5rem;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            accent-color: #58a6ff;
+        }
+
+        .checkbox-group label {
+            font-size: 0.75rem;
+            color: #8b949e;
+            cursor: pointer;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background-color: #238636;
+            color: #ffffff;
+            padding: 1rem 1.5rem;
+            border-radius: 50px;
+            font-size: 0.875rem;
+            transition: transform 0.3s;
+            z-index: 1000;
+            max-width: calc(100% - 2rem);
+        }
+
+        .toast.visible {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .toast.error {
+            background-color: #da3633;
+        }
+
+        /* Rows count selector */
+        .rows-control {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .rows-control label {
+            font-size: 0.75rem;
+            color: #8b949e;
+        }
+
+        .rows-control select {
+            width: auto;
+            min-width: 70px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            .form-row {
+                flex-direction: column;
+            }
+
+            .form-group.sm {
+                min-width: 100%;
+            }
+
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #161b22;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #30363d;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #484f58;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>🔀 Git Explorer</h1>
+            <div class="nav-links">
+                <a href="/" class="nav-link">📋 Prompts</a>
+                <a href="/admin" class="nav-link">⚙️ Admin</a>
+                <a href="/api/logout" class="nav-link">Logout</a>
+            </div>
+        </header>
+
+        <!-- ==================== Config Section ==================== -->
+        <div class="section" id="config-section">
+            <div class="section-header" onclick="toggleSection('config-section')">
+                <h2>🔧 Repository & SSH Config</h2>
+                <span class="section-toggle">▾</span>
+            </div>
+            <div class="section-body">
+                <div class="form-row">
+                    <div class="form-group" style="flex:3">
+                        <label for="repo-url">Repository URL</label>
+                        <input type="text" id="repo-url"
+                            placeholder="https://github.com/owner/repo or git@github.com:owner/repo.git">
+                    </div>
+                    <div class="form-group sm">
+                        <label for="ssh-key-select">SSH Key</label>
+                        <select id="ssh-key-select">
+                            <option value="">None (public)</option>
+                        </select>
+                    </div>
+                    <div class="form-group sm" style="min-width:auto">
+                        <label>&nbsp;</label>
+                        <button class="btn btn-primary" id="btn-fetch-refs" onclick="fetchRefs()">Fetch Refs</button>
+                    </div>
+                </div>
+
+                <!-- SSH Key Upload -->
+                <details style="margin-top:0.5rem">
+                    <summary
+                        style="font-size:0.75rem;color:#8b949e;cursor:pointer;user-select:none;margin-bottom:0.5rem">
+                        🔑 Manage SSH Keys
+                    </summary>
+                    <div class="form-row" style="margin-top:0.5rem">
+                        <div class="form-group sm">
+                            <label for="key-label">Key Label</label>
+                            <input type="text" id="key-label" placeholder="e.g. work-laptop">
+                        </div>
+                        <div class="form-group">
+                            <label for="key-file">Private Key File</label>
+                            <input type="file" id="key-file">
+                        </div>
+                        <div class="form-group sm" style="min-width:auto">
+                            <label>&nbsp;</label>
+                            <button class="btn btn-secondary" onclick="uploadKey()">Upload</button>
+                        </div>
+                    </div>
+                    <div class="key-list" id="key-list"></div>
+                </details>
+            </div>
+        </div>
+
+        <!-- ==================== Refs Section ==================== -->
+        <div class="section collapsed" id="refs-section">
+            <div class="section-header" onclick="toggleSection('refs-section')">
+                <h2>📊 Branches & Tags</h2>
+                <span class="section-toggle">▾</span>
+            </div>
+            <div class="section-body">
+                <div class="tab-bar">
+                    <button class="tab-btn active" onclick="switchRefsTab('branches')">Branches <span
+                            id="branch-count-badge"></span></button>
+                    <button class="tab-btn" onclick="switchRefsTab('tags')">Tags <span
+                            id="tag-count-badge"></span></button>
+                </div>
+                <div class="rows-control" style="margin-bottom:0.5rem">
+                    <label for="rows-limit">Show</label>
+                    <select id="rows-limit" onchange="renderRefsTable()">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="0">All</option>
+                    </select>
+                    <label>entries</label>
+                </div>
+                <div class="table-wrap" id="refs-table-wrap">
+                    <table>
+                        <thead id="refs-thead"></thead>
+                        <tbody id="refs-tbody"></tbody>
+                    </table>
+                </div>
+                <div class="table-footer" id="refs-footer"></div>
+            </div>
+        </div>
+
+        <!-- ==================== Structure Section ==================== -->
+        <div class="section collapsed" id="structure-section">
+            <div class="section-header" onclick="toggleSection('structure-section')">
+                <h2>📁 Directory Structure</h2>
+                <span class="section-toggle">▾</span>
+            </div>
+            <div class="section-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="struct-ref">Branch / Tag</label>
+                        <select id="struct-ref"></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="struct-pattern">File Pattern (regex)</label>
+                        <input type="text" id="struct-pattern" value="." placeholder="e.g. \.py$">
+                    </div>
+                    <div class="form-group">
+                        <label for="struct-exclude">Exclude Dirs (comma-sep)</label>
+                        <input type="text" id="struct-exclude" placeholder="e.g. node_modules,.git,vendor">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="struct-dir-pattern">Dir Pattern (regex, optional)</label>
+                        <input type="text" id="struct-dir-pattern" placeholder="e.g. ^src/">
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="struct-subdirs">
+                        <label for="struct-subdirs">Include subdirectories</label>
+                    </div>
+                    <div class="form-group sm" style="min-width:auto">
+                        <label>&nbsp;</label>
+                        <button class="btn btn-primary" id="btn-structure" onclick="fetchStructure()">Get
+                            Structure</button>
+                    </div>
+                </div>
+                <div class="output-area" id="structure-output"></div>
+            </div>
+        </div>
+
+        <!-- ==================== Files Section ==================== -->
+        <div class="section collapsed" id="files-section">
+            <div class="section-header" onclick="toggleSection('files-section')">
+                <h2>📄 File Contents</h2>
+                <span class="section-toggle">▾</span>
+            </div>
+            <div class="section-body">
+                <div class="tab-bar">
+                    <button class="tab-btn active" onclick="switchFilesTab('pattern')">By Pattern</button>
+                    <button class="tab-btn" onclick="switchFilesTab('paths')">By Path List</button>
+                </div>
+
+                <!-- By Pattern -->
+                <div id="files-pattern-panel">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="fp-ref">Branch / Tag</label>
+                            <select id="fp-ref"></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="fp-pattern">File Pattern (regex)</label>
+                            <input type="text" id="fp-pattern" value="\\.py$" placeholder="e.g. \.py$">
+                        </div>
+                        <div class="form-group">
+                            <label for="fp-exclude">Exclude Dirs</label>
+                            <input type="text" id="fp-exclude" placeholder="e.g. __pycache__,node_modules">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="fp-dir-pattern">Dir Pattern (regex, optional)</label>
+                            <input type="text" id="fp-dir-pattern" placeholder="e.g. ^src/">
+                        </div>
+                        <div class="form-group">
+                            <label for="fp-content-regex">Content Regex (optional)</label>
+                            <input type="text" id="fp-content-regex" placeholder="e.g. def main">
+                        </div>
+                        <div class="form-group sm" style="min-width:auto">
+                            <label>&nbsp;</label>
+                            <button class="btn btn-primary" id="btn-files-pattern" onclick="fetchFilesByPattern()">Get
+                                Files</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- By Path List -->
+                <div id="files-paths-panel" style="display:none">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="fpl-ref">Branch / Tag</label>
+                            <select id="fpl-ref"></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="fpl-exclude">Exclude Dirs</label>
+                            <input type="text" id="fpl-exclude" placeholder="e.g. vendor,dist">
+                        </div>
+                        <div class="form-group sm" style="min-width:auto">
+                            <label>&nbsp;</label>
+                            <button class="btn btn-primary" id="btn-files-paths" onclick="fetchFilesByPaths()">Get
+                                Files</button>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group" style="flex:1">
+                            <label for="fpl-list">File Paths (one per line)</label>
+                            <textarea id="fpl-list" rows="5"
+                                placeholder="README.md&#10;src/main.py&#10;setup.cfg"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="output-area" id="files-output"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ===== State =====
+        let refsData = { branches: [], tags: [] };
+        let activeRefsTab = 'branches';
+        let activeFilesTab = 'pattern';
+
+        // ===== Section toggle =====
+        function toggleSection(id) {
+            document.getElementById(id).classList.toggle('collapsed');
+        }
+
+        // ===== Toast =====
+        function showToast(msg, isError = false) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = 'toast visible' + (isError ? ' error' : '');
+            setTimeout(() => t.classList.remove('visible'), 4000);
+        }
+
+        // ===== SSH Keys =====
+        async function loadKeys() {
+            try {
+                const res = await fetch('/api/git/ssh-keys');
+                const keys = await res.json();
+                renderKeys(keys);
+            } catch (e) {
+                console.error('Failed to load SSH keys', e);
+            }
+        }
+
+        function renderKeys(keys) {
+            const sel = document.getElementById('ssh-key-select');
+            const list = document.getElementById('key-list');
+            // keep existing selection
+            const prev = sel.value;
+            sel.innerHTML = '<option value="">None (public)</option>';
+            keys.forEach(k => {
+                const opt = document.createElement('option');
+                opt.value = k.label;
+                opt.textContent = `🔑 ${k.label}`;
+                sel.appendChild(opt);
+            });
+            if (prev) sel.value = prev;
+
+            list.innerHTML = keys.map(k =>
+                `<span class="key-tag">
+                    🔑 ${escHtml(k.label)}
+                    <span style="color:#8b949e;font-size:0.625rem">${k.uploaded_at || ''}</span>
+                    <button class="del-btn" onclick="deleteKey('${escAttr(k.label)}')" title="Delete">✕</button>
+                </span>`
+            ).join('');
+        }
+
+        async function uploadKey() {
+            const label = document.getElementById('key-label').value.trim();
+            const fileInput = document.getElementById('key-file');
+            if (!label) return showToast('Please enter a key label', true);
+            if (!fileInput.files.length) return showToast('Please select a key file', true);
+
+            const fd = new FormData();
+            fd.append('label', label);
+            fd.append('file', fileInput.files[0]);
+
+            try {
+                const res = await fetch('/api/git/ssh-keys', { method: 'POST', body: fd });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error);
+                showToast(`Key "${label}" uploaded`);
+                document.getElementById('key-label').value = '';
+                fileInput.value = '';
+                loadKeys();
+            } catch (e) {
+                showToast('Upload failed: ' + e.message, true);
+            }
+        }
+
+        async function deleteKey(label) {
+            if (!confirm(`Delete SSH key "${label}"?`)) return;
+            try {
+                const res = await fetch(`/api/git/ssh-keys/${encodeURIComponent(label)}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error);
+                showToast(`Key "${label}" deleted`);
+                loadKeys();
+            } catch (e) {
+                showToast('Delete failed: ' + e.message, true);
+            }
+        }
+
+        // ===== Refs =====
+        function getCommonPayload() {
+            return {
+                url: document.getElementById('repo-url').value.trim(),
+                ssh_key_label: document.getElementById('ssh-key-select').value || undefined,
+            };
+        }
+
+        async function fetchRefs() {
+            const btn = document.getElementById('btn-fetch-refs');
+            const { url, ssh_key_label } = getCommonPayload();
+            if (!url) return showToast('Please enter a repository URL', true);
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>Fetching…';
+            try {
+                const res = await fetch('/api/git/refs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, ssh_key_label }),
+                });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error);
+                refsData = { branches: data.branches || [], tags: data.tags || [] };
+                document.getElementById('refs-section').classList.remove('collapsed');
+                renderRefsTable();
+                populateRefSelectors();
+                showToast(`Found ${refsData.branches.length} branch(es), ${refsData.tags.length} tag(s)`);
+            } catch (e) {
+                showToast('Fetch refs failed: ' + e.message, true);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Fetch Refs';
+            }
+        }
+
+        function switchRefsTab(tab) {
+            activeRefsTab = tab;
+            document.querySelectorAll('#refs-section .tab-btn').forEach((b, i) => {
+                b.classList.toggle('active', (i === 0 && tab === 'branches') || (i === 1 && tab === 'tags'));
+            });
+            renderRefsTable();
+        }
+
+        function renderRefsTable() {
+            const thead = document.getElementById('refs-thead');
+            const tbody = document.getElementById('refs-tbody');
+            const footer = document.getElementById('refs-footer');
+            const limit = parseInt(document.getElementById('rows-limit').value) || 0;
+
+            const isBranches = activeRefsTab === 'branches';
+            const data = isBranches ? refsData.branches : refsData.tags;
+
+            // Update badges
+            document.getElementById('branch-count-badge').textContent =
+                refsData.branches.length ? `(${refsData.branches.length})` : '';
+            document.getElementById('tag-count-badge').textContent =
+                refsData.tags.length ? `(${refsData.tags.length})` : '';
+
+            if (isBranches) {
+                thead.innerHTML = `<tr>
+                    <th>Name</th><th>SHA</th><th>Author</th><th>Date</th><th>Subject</th>
+                </tr>`;
+                const rows = limit > 0 ? data.slice(0, limit) : data;
+                tbody.innerHTML = rows.map(b => `<tr>
+                    <td><strong>${escHtml(b.name)}</strong></td>
+                    <td><span class="sha">${escHtml((b.commit_sha || '').substring(0, 8))}</span></td>
+                    <td>${escHtml(b.author_name || '')}</td>
+                    <td>${escHtml(formatDate(b.commit_date))}</td>
+                    <td>${escHtml(b.commit_subject || '')}</td>
+                </tr>`).join('');
+                footer.textContent = limit > 0 && data.length > limit
+                    ? `Showing ${rows.length} of ${data.length} branches`
+                    : `${data.length} branch(es)`;
+            } else {
+                thead.innerHTML = `<tr>
+                    <th>Name</th><th>Tag SHA</th><th>Commit SHA</th><th>Annotated</th>
+                    <th>Date</th><th>Subject</th>
+                </tr>`;
+                const rows = limit > 0 ? data.slice(0, limit) : data;
+                tbody.innerHTML = rows.map(t => `<tr>
+                    <td><strong>${escHtml(t.name)}</strong></td>
+                    <td><span class="sha">${escHtml((t.tag_sha || '').substring(0, 8))}</span></td>
+                    <td><span class="sha">${escHtml((t.commit_sha || '').substring(0, 8))}</span></td>
+                    <td>${t.is_annotated ? '✓' : ''}</td>
+                    <td>${escHtml(formatDate(t.tag_date || t.commit_date))}</td>
+                    <td>${escHtml(t.commit_subject || '')}</td>
+                </tr>`).join('');
+                footer.textContent = limit > 0 && data.length > limit
+                    ? `Showing ${rows.length} of ${data.length} tags`
+                    : `${data.length} tag(s)`;
+            }
+        }
+
+        function populateRefSelectors() {
+            const opts = [];
+            if (refsData.branches.length) {
+                opts.push('<optgroup label="Branches">');
+                refsData.branches.forEach(b => opts.push(`<option value="${escAttr(b.name)}">${escHtml(b.name)}</option>`));
+                opts.push('</optgroup>');
+            }
+            if (refsData.tags.length) {
+                opts.push('<optgroup label="Tags">');
+                refsData.tags.forEach(t => opts.push(`<option value="${escAttr(t.name)}">${escHtml(t.name)}</option>`));
+                opts.push('</optgroup>');
+            }
+            const html = opts.join('');
+            ['struct-ref', 'fp-ref', 'fpl-ref'].forEach(id => {
+                document.getElementById(id).innerHTML = html;
+            });
+        }
+
+        // ===== Structure =====
+        async function fetchStructure() {
+            const btn = document.getElementById('btn-structure');
+            const out = document.getElementById('structure-output');
+            const { url, ssh_key_label } = getCommonPayload();
+            const ref = document.getElementById('struct-ref').value;
+            if (!url || !ref) return showToast('URL and ref required', true);
+
+            const excludeRaw = document.getElementById('struct-exclude').value.trim();
+            const exclude_dirs = excludeRaw ? excludeRaw.split(',').map(s => s.trim()).filter(Boolean) : undefined;
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>Loading…';
+            out.className = 'output-area visible';
+            out.textContent = 'Fetching directory structure…';
+
+            try {
+                const res = await fetch('/api/git/structure', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        url, ref, ssh_key_label,
+                        pattern: document.getElementById('struct-pattern').value || '.',
+                        exclude_dirs,
+                        dir_pattern: document.getElementById('struct-dir-pattern').value || undefined,
+                        include_subdirs: document.getElementById('struct-subdirs').checked,
+                    }),
+                });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error);
+                out.textContent = data.output;
+                out.classList.remove('empty-msg');
+            } catch (e) {
+                out.textContent = 'Error: ' + e.message;
+                out.classList.add('empty-msg');
+                showToast('Structure fetch failed: ' + e.message, true);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Get Structure';
+            }
+        }
+
+        // ===== Files =====
+        function switchFilesTab(tab) {
+            activeFilesTab = tab;
+            document.querySelectorAll('#files-section .tab-btn').forEach((b, i) => {
+                b.classList.toggle('active', (i === 0 && tab === 'pattern') || (i === 1 && tab === 'paths'));
+            });
+            document.getElementById('files-pattern-panel').style.display = tab === 'pattern' ? '' : 'none';
+            document.getElementById('files-paths-panel').style.display = tab === 'paths' ? '' : 'none';
+        }
+
+        async function fetchFilesByPattern() {
+            const btn = document.getElementById('btn-files-pattern');
+            const out = document.getElementById('files-output');
+            const { url, ssh_key_label } = getCommonPayload();
+            const ref = document.getElementById('fp-ref').value;
+            if (!url || !ref) return showToast('URL and ref required', true);
+
+            const excludeRaw = document.getElementById('fp-exclude').value.trim();
+            const exclude_dirs = excludeRaw ? excludeRaw.split(',').map(s => s.trim()).filter(Boolean) : undefined;
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>Loading…';
+            out.className = 'output-area visible';
+            out.textContent = 'Fetching files…';
+
+            try {
+                const res = await fetch('/api/git/files', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        url, ref, ssh_key_label,
+                        pattern: document.getElementById('fp-pattern').value || '.',
+                        exclude_dirs,
+                        dir_pattern: document.getElementById('fp-dir-pattern').value || undefined,
+                        content_regex: document.getElementById('fp-content-regex').value || undefined,
+                    }),
+                });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error);
+                out.textContent = data.output;
+                out.classList.remove('empty-msg');
+            } catch (e) {
+                out.textContent = 'Error: ' + e.message;
+                out.classList.add('empty-msg');
+                showToast('Files fetch failed: ' + e.message, true);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Get Files';
+            }
+        }
+
+        async function fetchFilesByPaths() {
+            const btn = document.getElementById('btn-files-paths');
+            const out = document.getElementById('files-output');
+            const { url, ssh_key_label } = getCommonPayload();
+            const ref = document.getElementById('fpl-ref').value;
+            if (!url || !ref) return showToast('URL and ref required', true);
+
+            const raw = document.getElementById('fpl-list').value.trim();
+            const file_list = raw.split('\n').map(s => s.trim()).filter(Boolean);
+            if (!file_list.length) return showToast('Enter at least one file path', true);
+
+            const excludeRaw = document.getElementById('fpl-exclude').value.trim();
+            const exclude_dirs = excludeRaw ? excludeRaw.split(',').map(s => s.trim()).filter(Boolean) : undefined;
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>Loading…';
+            out.className = 'output-area visible';
+            out.textContent = 'Fetching files…';
+
+            try {
+                const res = await fetch('/api/git/files-by-path', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, ref, ssh_key_label, file_list, exclude_dirs }),
+                });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error);
+                out.textContent = data.output;
+                out.classList.remove('empty-msg');
+            } catch (e) {
+                out.textContent = 'Error: ' + e.message;
+                out.classList.add('empty-msg');
+                showToast('Files fetch failed: ' + e.message, true);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Get Files';
+            }
+        }
+
+        // ===== Helpers =====
+        function escHtml(s) {
+            const d = document.createElement('div');
+            d.textContent = s || '';
+            return d.innerHTML;
+        }
+
+        function escAttr(s) {
+            return (s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
+
+        function formatDate(d) {
+            if (!d) return '';
+            try {
+                const dt = new Date(d);
+                return dt.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+            } catch { return d; }
+        }
+
+        // ===== Init =====
+        loadKeys();
+    </script>
+</body>
+
+</html>

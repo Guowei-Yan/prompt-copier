@@ -1,10 +1,13 @@
 import os
 from datetime import timedelta
 from functools import wraps
+import traceback
 from flask import Flask, request, jsonify, render_template, redirect, url_for, session
 from config import AUTH_USERNAME, AUTH_PASSWORD, SECRET_KEY, SQLALCHEMY_DATABASE_URI
 from models import db, Prompt
 import prompts as prompt_service
+import git_service
+import ssh_keys
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
@@ -227,6 +230,149 @@ def api_delete_saved_params():
 @requires_auth
 def api_groups():
     return jsonify(prompt_service.get_all_groups())
+
+
+# ---------------------------------------------------------------------------
+# Git Explorer
+# ---------------------------------------------------------------------------
+
+@app.route('/git')
+@requires_auth
+def git_explorer():
+    return render_template('git_explorer.html')
+
+
+# ---- SSH Key Management ----
+
+@app.route('/api/git/ssh-keys', methods=['GET'])
+@requires_auth
+def api_list_ssh_keys():
+    return jsonify(ssh_keys.list_keys())
+
+
+@app.route('/api/git/ssh-keys', methods=['POST'])
+@requires_auth
+def api_upload_ssh_key():
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file uploaded'}), 400
+    f = request.files['file']
+    label = request.form.get('label', '').strip()
+    if not label:
+        return jsonify({'success': False, 'error': 'Label is required'}), 400
+    try:
+        path = ssh_keys.save_key(label, f.read())
+        return jsonify({'success': True, 'path': path})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/git/ssh-keys/<label>', methods=['DELETE'])
+@requires_auth
+def api_delete_ssh_key(label):
+    if ssh_keys.delete_key(label):
+        return jsonify({'success': True})
+    return jsonify({'success': False, 'error': 'Key not found'}), 404
+
+
+# ---- Git Operations ----
+
+def _resolve_ssh_key(data: dict):
+    """Return ssh_key_path from request data or None."""
+    label = data.get('ssh_key_label', '').strip()
+    if label:
+        path = ssh_keys.get_key_path(label)
+        if not path:
+            raise ValueError(f"SSH key '{label}' not found")
+        return path
+    return None
+
+
+@app.route('/api/git/refs', methods=['POST'])
+@requires_auth
+def api_git_refs():
+    data = request.get_json()
+    url = (data.get('url') or '').strip()
+    if not url:
+        return jsonify({'success': False, 'error': 'URL is required'}), 400
+    try:
+        key_path = _resolve_ssh_key(data)
+        result = git_service.get_refs_detailed(url, ssh_key_path=key_path)
+        return jsonify({'success': True, **result})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/git/structure', methods=['POST'])
+@requires_auth
+def api_git_structure():
+    data = request.get_json()
+    url = (data.get('url') or '').strip()
+    ref = (data.get('ref') or '').strip()
+    pattern = data.get('pattern', r'.')
+    if not url or not ref:
+        return jsonify({'success': False, 'error': 'URL and ref are required'}), 400
+    try:
+        key_path = _resolve_ssh_key(data)
+        result = git_service.get_directory_structure(
+            url, ref, pattern,
+            exclude_dirs=data.get('exclude_dirs'),
+            dir_pattern=data.get('dir_pattern'),
+            include_subdirs=data.get('include_subdirs', False),
+            ssh_key_path=key_path,
+        )
+        return jsonify({'success': True, 'output': result})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/git/files', methods=['POST'])
+@requires_auth
+def api_git_files():
+    data = request.get_json()
+    url = (data.get('url') or '').strip()
+    ref = (data.get('ref') or '').strip()
+    pattern = data.get('pattern', r'.')
+    if not url or not ref:
+        return jsonify({'success': False, 'error': 'URL and ref are required'}), 400
+    try:
+        key_path = _resolve_ssh_key(data)
+        result = git_service.get_files_by_pattern(
+            url, ref, pattern,
+            content_regex=data.get('content_regex'),
+            exclude_dirs=data.get('exclude_dirs'),
+            dir_pattern=data.get('dir_pattern'),
+            ssh_key_path=key_path,
+        )
+        return jsonify({'success': True, 'output': result})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/git/files-by-path', methods=['POST'])
+@requires_auth
+def api_git_files_by_path():
+    data = request.get_json()
+    url = (data.get('url') or '').strip()
+    ref = (data.get('ref') or '').strip()
+    file_list = data.get('file_list', [])
+    if not url or not ref:
+        return jsonify({'success': False, 'error': 'URL and ref are required'}), 400
+    if not file_list:
+        return jsonify({'success': False, 'error': 'file_list is required'}), 400
+    try:
+        key_path = _resolve_ssh_key(data)
+        result = git_service.get_files_by_paths(
+            url, ref, file_list,
+            exclude_dirs=data.get('exclude_dirs'),
+            ssh_key_path=key_path,
+        )
+        return jsonify({'success': True, 'output': result})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 if __name__ == '__main__':
