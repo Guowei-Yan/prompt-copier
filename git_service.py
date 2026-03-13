@@ -8,6 +8,7 @@ Provides:
   - get_files_by_paths(url, ref, file_list, ...) → str
 """
 
+import hashlib
 import io
 import os
 import re
@@ -16,6 +17,7 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
+import time
 from typing import Any, Dict, Generator, List, Optional, Set, Tuple
 
 import git
@@ -79,6 +81,255 @@ def _parse_github_url(remote_repo_url: str) -> Optional[Tuple[str, str]]:
     if m:
         return m.group(1), m.group(2)
     return None
+
+
+# ---------------------------------------------------------------------------
+# Disk archive cache
+# ---------------------------------------------------------------------------
+_ARCHIVE_CACHE_DIR = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), ".git_archive_cache"
+)
+DEFAULT_CACHE_TTL_SECONDS = 28800  # 8 hours
+
+
+def _cache_key_for_url(
+    remote_repo_url: str, branch: str
+) -> Tuple[str, str]:
+    github = _parse_github_url(remote_repo_url)
+    if github:
+        owner, repo_name = github
+        label = f"{owner}/{repo_name}/{branch}"
+        safe = f"{owner}_{repo_name}_{branch}"
+    else:
+        url_hash = hashlib.sha256(remote_repo_url.encode()).hexdigest()[:12]
+        label = f"{remote_repo_url} / {branch}"
+        safe = f"{url_hash}_{branch}"
+    safe = re.sub(r"[^\w\-.]", "_", safe)
+    return label, safe
+
+
+def _format_size(size_bytes: int) -> str:
+    if size_bytes < 1024:
+        return f"{size_bytes} B"
+    elif size_bytes < 1024 * 1024:
+        return f"{size_bytes / 1024:.1f} KB"
+    elif size_bytes < 1024 * 1024 * 1024:
+        return f"{size_bytes / (1024 * 1024):.1f} MB"
+    else:
+        return f"{size_bytes / (1024 * 1024 * 1024):.2f} GB"
+
+
+def _format_age(seconds: float) -> str:
+    if seconds < 60:
+        return f"{int(seconds)}s ago"
+    elif seconds < 3600:
+        return f"{int(seconds / 60)} min ago"
+    elif seconds < 86400:
+        return f"{seconds / 3600:.1f} hr ago"
+    else:
+        return f"{seconds / 86400:.1f} days ago"
+
+
+def _print_cache_summary() -> None:
+    if not os.path.isdir(_ARCHIVE_CACHE_DIR):
+        print("[CACHE DIR]  No cache directory yet")
+        return
+    entries = [
+        f
+        for f in os.listdir(_ARCHIVE_CACHE_DIR)
+        if os.path.isfile(os.path.join(_ARCHIVE_CACHE_DIR, f))
+    ]
+    total_size = sum(
+        os.path.getsize(os.path.join(_ARCHIVE_CACHE_DIR, f)) for f in entries
+    )
+    print(
+        f"[CACHE DIR]  Total: {len(entries)} repo(s) cached, "
+        f"{_format_size(total_size)} used"
+    )
+
+
+def _fetch_remote_archive(
+    remote_repo_url: str,
+    ref: str,
+    *,
+    ssh_key_path: Optional[str] = None,
+    use_cache: bool = True,
+    cache_ttl: int = DEFAULT_CACHE_TTL_SECONDS,
+    force_refresh: bool = False,
+) -> Tuple[str, bool]:
+    label, safe_name = _cache_key_for_url(remote_repo_url, ref)
+
+    github_details = _parse_github_url(remote_repo_url)
+    is_gzipped = bool(github_details)
+    ext = ".tar.gz" if is_gzipped else ".tar"
+    cache_file = os.path.join(_ARCHIVE_CACHE_DIR, safe_name + ext)
+
+    if use_cache and not force_refresh and os.path.isfile(cache_file):
+        file_age = time.time() - os.path.getmtime(cache_file)
+        file_size = os.path.getsize(cache_file)
+        if file_age < cache_ttl:
+            print(
+                f"[CACHE HIT]  {label} — cached {_format_age(file_age)} "
+                f"({_format_size(file_size)})"
+            )
+            _print_cache_summary()
+            return cache_file, is_gzipped
+        else:
+            print(
+                f"[CACHE EXPIRED]  {label} — cached {_format_age(file_age)}, "
+                f"TTL={cache_ttl}s. Re-downloading..."
+            )
+
+    if force_refresh:
+        print(f"[FORCE REFRESH]  {label} — downloading fresh copy...")
+    else:
+        print(f"[CACHE MISS]  {label} — downloading...")
+
+    archive_bytes, actual_gzipped = _fetch_remote_archive_bytes(
+        remote_repo_url, ref, ssh_key_path=ssh_key_path
+    )
+    is_gzipped = actual_gzipped
+
+    ext = ".tar.gz" if is_gzipped else ".tar"
+    cache_file = os.path.join(_ARCHIVE_CACHE_DIR, safe_name + ext)
+
+    os.makedirs(_ARCHIVE_CACHE_DIR, exist_ok=True)
+    with open(cache_file, "wb") as f:
+        f.write(archive_bytes)
+
+    file_size = len(archive_bytes)
+    print(f"[DOWNLOADED]  {label} — {_format_size(file_size)} saved to cache")
+    _print_cache_summary()
+    return cache_file, is_gzipped
+
+
+def _iterate_tar_members(
+    archive_path: str,
+    is_gzipped: bool = False,
+) -> Generator[Tuple[tarfile.TarInfo, Optional[bytes]], None, None]:
+    mode = "r:gz" if is_gzipped else "r:"
+    try:
+        with tarfile.open(archive_path, mode=mode) as tar:
+            for member in tar:
+                if member.isfile():
+                    file_content_stream = tar.extractfile(member)
+                    if file_content_stream:
+                        yield member, file_content_stream.read()
+                    else:
+                        yield member, None
+                else:
+                    yield member, None
+    except tarfile.TarError as e:
+        print(f"Error reading tar archive from '{archive_path}' (mode: '{mode}'): {e}")
+        if is_gzipped and "not a gzip file" in str(e).lower():
+            print("Attempting to read as uncompressed tar...")
+            try:
+                with tarfile.open(archive_path, mode="r:") as tar_retry:
+                    for member in tar_retry:
+                        if member.isfile():
+                            s = tar_retry.extractfile(member)
+                            if s:
+                                yield member, s.read()
+                            else:
+                                yield member, None
+                        else:
+                            yield member, None
+                    return
+            except tarfile.TarError as e_retry:
+                print(f"Retry with mode 'r:' also failed: {e_retry}")
+                raise e_retry
+        raise
+
+
+def _detect_common_prefix_from_first_member(
+    archive_path: str,
+    is_gzipped: bool,
+) -> str:
+    """Peek at the first tar member to detect a common prefix (fast)."""
+    mode = "r:gz" if is_gzipped else "r:"
+    try:
+        with tarfile.open(archive_path, mode=mode) as tar:
+            for member in tar:
+                first_path = member.name.replace("\\", "/")
+                parts = first_path.split("/")
+                if len(parts) > 1:
+                    return parts[0] + "/"
+                break
+    except Exception:
+        pass
+    return ""
+
+
+def get_archive_cache_info() -> List[Dict]:
+    if not os.path.isdir(_ARCHIVE_CACHE_DIR):
+        return []
+
+    entries = []
+    for fname in sorted(os.listdir(_ARCHIVE_CACHE_DIR)):
+        fpath = os.path.join(_ARCHIVE_CACHE_DIR, fname)
+        if not os.path.isfile(fpath):
+            continue
+        size = os.path.getsize(fpath)
+        age = time.time() - os.path.getmtime(fpath)
+        entries.append({
+            "file": fname,
+            "size": size,
+            "size_human": _format_size(size),
+            "age_seconds": age,
+            "age_human": _format_age(age),
+            "path": fpath,
+        })
+    return entries
+
+
+def clear_archive_cache(
+    repo_url: Optional[str] = None,
+    branch: Optional[str] = None,
+) -> Dict[str, Any]:
+    if not os.path.isdir(_ARCHIVE_CACHE_DIR):
+        return {"removed": 0, "freed_human": _format_size(0)}
+
+    freed = 0
+    removed = 0
+
+    if repo_url is None:
+        for fname in os.listdir(_ARCHIVE_CACHE_DIR):
+            fpath = os.path.join(_ARCHIVE_CACHE_DIR, fname)
+            if os.path.isfile(fpath):
+                freed += os.path.getsize(fpath)
+                os.remove(fpath)
+                removed += 1
+    else:
+        _, safe_prefix = _cache_key_for_url(repo_url, branch or "")
+        if branch:
+            for ext in [".tar.gz", ".tar"]:
+                fpath = os.path.join(_ARCHIVE_CACHE_DIR, safe_prefix + ext)
+                if os.path.isfile(fpath):
+                    freed += os.path.getsize(fpath)
+                    os.remove(fpath)
+                    removed += 1
+        else:
+            github = _parse_github_url(repo_url)
+            if github:
+                owner, repo_name = github
+                prefix = f"{owner}_{repo_name}_"
+            else:
+                url_hash = hashlib.sha256(repo_url.encode()).hexdigest()[:12]
+                prefix = f"{url_hash}_"
+            for fname in os.listdir(_ARCHIVE_CACHE_DIR):
+                if fname.startswith(prefix):
+                    fpath = os.path.join(_ARCHIVE_CACHE_DIR, fname)
+                    if os.path.isfile(fpath):
+                        freed += os.path.getsize(fpath)
+                        os.remove(fpath)
+                        removed += 1
+
+    print(
+        f"[CACHE CLEARED]  Removed {removed} file(s), "
+        f"freed {_format_size(freed)}"
+    )
+    _print_cache_summary()
+    return {"removed": removed, "freed_human": _format_size(freed)}
 
 
 
@@ -569,8 +820,9 @@ def get_directory_structure(
     summarize_dominance_ratio: float = 0.8,
     summarize_sample_count: int = 1,
     ssh_key_path: Optional[str] = None,
+    force_refresh: bool = False,
+    cache_ttl: int = DEFAULT_CACHE_TTL_SECONDS,
 ) -> str:
-    """Return directory-structure text for a remote repo / ref."""
     pattern_regex = re.compile(pattern)
     dir_pattern_regex = (
         re.compile(dir_pattern, dir_regex_flags) if dir_pattern else None
@@ -579,19 +831,19 @@ def get_directory_structure(
     directory_files: Dict[str, List[str]] = {}
     directory_subdirs: Dict[str, set] = {}
 
-    print(
-        f"Fetching archive for {remote_repo_url} ref '{ref}' to list structure..."
+    archive_path, is_gzipped = _fetch_remote_archive(
+        remote_repo_url, ref,
+        ssh_key_path=ssh_key_path,
+        force_refresh=force_refresh,
+        cache_ttl=cache_ttl,
     )
-    archive_bytes, is_gzipped = _fetch_remote_archive_bytes(
-        remote_repo_url, ref, specific_paths=None, ssh_key_path=ssh_key_path
+    common_prefix_to_strip = _detect_common_prefix_from_first_member(
+        archive_path, is_gzipped
     )
-    common_prefix_to_strip = _detect_common_prefix(archive_bytes, is_gzipped)
     if common_prefix_to_strip:
         print(f"Detected common prefix: '{common_prefix_to_strip}'")
 
-    for member_info, _ in _iterate_tar_members_from_bytes(
-        archive_bytes, is_gzipped
-    ):
+    for member_info, _ in _iterate_tar_members(archive_path, is_gzipped):
         original_path = member_info.name.replace("\\", "/")
         file_path = (
             original_path[len(common_prefix_to_strip):]
@@ -716,8 +968,9 @@ def get_files_by_pattern(
     dir_pattern: Optional[str] = None,
     dir_regex_flags: int = 0,
     ssh_key_path: Optional[str] = None,
+    force_refresh: bool = False,
+    cache_ttl: int = DEFAULT_CACHE_TTL_SECONDS,
 ) -> str:
-    """Return file contents matching *pattern* as formatted text."""
     pattern_regex = re.compile(pattern)
     content_compiled = re.compile(content_regex) if content_regex else None
     dir_pattern_regex = (
@@ -726,16 +979,20 @@ def get_files_by_pattern(
     exclude_dirs_set: Set[str] = set(exclude_dirs or [])
     files_written = 0
 
-    print(f"Fetching archive for {remote_repo_url} ref '{ref}' to extract files...")
-    archive_bytes, is_gzipped = _fetch_remote_archive_bytes(
-        remote_repo_url, ref, specific_paths=None, ssh_key_path=ssh_key_path
+    archive_path, is_gzipped = _fetch_remote_archive(
+        remote_repo_url, ref,
+        ssh_key_path=ssh_key_path,
+        force_refresh=force_refresh,
+        cache_ttl=cache_ttl,
     )
-    common_prefix = _detect_common_prefix(archive_bytes, is_gzipped)
+    common_prefix = _detect_common_prefix_from_first_member(
+        archive_path, is_gzipped
+    )
 
     chunks: List[str] = []
 
-    for member_info, content_bytes in _iterate_tar_members_from_bytes(
-        archive_bytes, is_gzipped
+    for member_info, content_bytes in _iterate_tar_members(
+        archive_path, is_gzipped
     ):
         if not member_info.isfile() or content_bytes is None:
             continue
@@ -798,25 +1055,27 @@ def get_files_by_paths(
     *,
     exclude_dirs: Optional[List[str]] = None,
     ssh_key_path: Optional[str] = None,
+    force_refresh: bool = False,
+    cache_ttl: int = DEFAULT_CACHE_TTL_SECONDS,
 ) -> str:
-    """Return file contents for an explicit list of paths."""
     files_to_find: Set[str] = set(file_list)
     exclude_dirs_set: Set[str] = set(exclude_dirs or [])
     files_written = 0
 
-    print(
-        f"Fetching archive for {remote_repo_url} ref '{ref}' "
-        f"to extract specific files..."
+    archive_path, is_gzipped = _fetch_remote_archive(
+        remote_repo_url, ref,
+        ssh_key_path=ssh_key_path,
+        force_refresh=force_refresh,
+        cache_ttl=cache_ttl,
     )
-    archive_bytes, is_gzipped = _fetch_remote_archive_bytes(
-        remote_repo_url, ref, ssh_key_path=ssh_key_path
+    common_prefix = _detect_common_prefix_from_first_member(
+        archive_path, is_gzipped
     )
-    common_prefix = _detect_common_prefix(archive_bytes, is_gzipped)
 
     chunks: List[str] = []
 
-    for member_info, content_bytes in _iterate_tar_members_from_bytes(
-        archive_bytes, is_gzipped
+    for member_info, content_bytes in _iterate_tar_members(
+        archive_path, is_gzipped
     ):
         if not member_info.isfile() or content_bytes is None:
             continue

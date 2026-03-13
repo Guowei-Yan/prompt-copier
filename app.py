@@ -430,6 +430,8 @@ def api_git_structure():
             dir_pattern=data.get('dir_pattern'),
             include_subdirs=data.get('include_subdirs', False),
             ssh_key_path=key_path,
+            force_refresh=data.get('force_refresh', False),
+            cache_ttl=data.get('cache_ttl', git_service.DEFAULT_CACHE_TTL_SECONDS),
         )
         return jsonify({'success': True, 'output': result})
     except Exception as e:
@@ -454,6 +456,8 @@ def api_git_files():
             exclude_dirs=data.get('exclude_dirs'),
             dir_pattern=data.get('dir_pattern'),
             ssh_key_path=key_path,
+            force_refresh=data.get('force_refresh', False),
+            cache_ttl=data.get('cache_ttl', git_service.DEFAULT_CACHE_TTL_SECONDS),
         )
         return jsonify({'success': True, 'output': result})
     except Exception as e:
@@ -478,11 +482,28 @@ def api_git_files_by_path():
             url, ref, file_list,
             exclude_dirs=data.get('exclude_dirs'),
             ssh_key_path=key_path,
+            force_refresh=data.get('force_refresh', False),
+            cache_ttl=data.get('cache_ttl', git_service.DEFAULT_CACHE_TTL_SECONDS),
         )
         return jsonify({'success': True, 'output': result})
     except Exception as e:
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/git/cache', methods=['GET'])
+@requires_auth
+def api_git_cache_info():
+    entries = git_service.get_archive_cache_info()
+    return jsonify({'success': True, 'entries': entries})
+
+
+@app.route('/api/git/cache', methods=['DELETE'])
+@requires_auth
+def api_git_cache_clear():
+    repo_url = request.args.get('repo_url')
+    branch = request.args.get('branch')
+    result = git_service.clear_archive_cache(repo_url=repo_url, branch=branch)
+    return jsonify({'success': True, **result})
 
 @app.route('/api/git/repos', methods=['GET'])
 @requires_auth

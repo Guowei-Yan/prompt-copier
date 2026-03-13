@@ -321,6 +321,17 @@
             display: none;
         }
 
+        .output-header {
+            display: none;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            margin-bottom: 0.375rem;
+        }
+
+        .output-header.visible {
+            display: flex;
+        }
+
         .output-area.visible {
             display: block;
         }
@@ -627,6 +638,16 @@
                     </div>
                     <div class="key-list" id="key-list"></div>
                 </details>
+
+                <div style="margin-top:0.75rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+                    <div class="checkbox-group" style="padding-bottom:0">
+                        <input type="checkbox" id="force-refresh">
+                        <label for="force-refresh">Force refresh (bypass cache)</label>
+                    </div>
+                    <span id="cache-status" style="font-size:0.6875rem;color:#484f58"></span>
+                    <button class="btn btn-sm btn-secondary" onclick="loadCacheInfo(true)" title="Refresh cache info">📊 Cache Info</button>
+                    <button class="btn btn-sm btn-danger" onclick="clearCache()" title="Clear all cached archives">🗑 Clear Cache</button>
+                </div>
             </div>
         </div>
 
@@ -699,6 +720,9 @@
                         <button class="btn btn-primary" id="btn-structure" onclick="fetchStructure()">Get
                             Structure</button>
                     </div>
+                </div>
+                <div class="output-header" id="structure-output-header">
+                    <button class="btn btn-sm btn-secondary" onclick="copyOutput('structure-output')">📋 Copy</button>
                 </div>
                 <div class="output-area" id="structure-output"></div>
             </div>
@@ -775,6 +799,9 @@
                     </div>
                 </div>
 
+                <div class="output-header" id="files-output-header">
+                    <button class="btn btn-sm btn-secondary" onclick="copyOutput('files-output')">📋 Copy</button>
+                </div>
                 <div class="output-area" id="files-output"></div>
             </div>
         </div>
@@ -877,6 +904,7 @@
             return {
                 url: document.getElementById('repo-url').value.trim(),
                 ssh_key_label: document.getElementById('ssh-key-select').value || undefined,
+                force_refresh: document.getElementById('force-refresh').checked,
             };
         }
 
@@ -991,7 +1019,7 @@
         async function fetchStructure() {
             const btn = document.getElementById('btn-structure');
             const out = document.getElementById('structure-output');
-            const { url, ssh_key_label } = getCommonPayload();
+            const { url, ssh_key_label, force_refresh } = getCommonPayload();
             const ref = document.getElementById('struct-ref').value;
             if (!url || !ref) return showToast('URL and ref required', true);
 
@@ -1008,7 +1036,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        url, ref, ssh_key_label,
+                        url, ref, ssh_key_label, force_refresh,
                         pattern: document.getElementById('struct-pattern').value || '.',
                         exclude_dirs,
                         dir_pattern: document.getElementById('struct-dir-pattern').value || undefined,
@@ -1019,6 +1047,8 @@
                 if (!data.success) throw new Error(data.error);
                 out.textContent = data.output;
                 out.classList.remove('empty-msg');
+                document.getElementById('structure-output-header').classList.add('visible');
+                loadCacheInfo(false);
             } catch (e) {
                 out.textContent = 'Error: ' + e.message;
                 out.classList.add('empty-msg');
@@ -1042,7 +1072,7 @@
         async function fetchFilesByPattern() {
             const btn = document.getElementById('btn-files-pattern');
             const out = document.getElementById('files-output');
-            const { url, ssh_key_label } = getCommonPayload();
+            const { url, ssh_key_label, force_refresh } = getCommonPayload();
             const ref = document.getElementById('fp-ref').value;
             if (!url || !ref) return showToast('URL and ref required', true);
 
@@ -1059,7 +1089,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        url, ref, ssh_key_label,
+                        url, ref, ssh_key_label, force_refresh,
                         pattern: document.getElementById('fp-pattern').value || '.',
                         exclude_dirs,
                         dir_pattern: document.getElementById('fp-dir-pattern').value || undefined,
@@ -1070,6 +1100,8 @@
                 if (!data.success) throw new Error(data.error);
                 out.textContent = data.output;
                 out.classList.remove('empty-msg');
+                document.getElementById('files-output-header').classList.add('visible');
+                loadCacheInfo(false);
             } catch (e) {
                 out.textContent = 'Error: ' + e.message;
                 out.classList.add('empty-msg');
@@ -1083,7 +1115,7 @@
         async function fetchFilesByPaths() {
             const btn = document.getElementById('btn-files-paths');
             const out = document.getElementById('files-output');
-            const { url, ssh_key_label } = getCommonPayload();
+            const { url, ssh_key_label, force_refresh } = getCommonPayload();
             const ref = document.getElementById('fpl-ref').value;
             if (!url || !ref) return showToast('URL and ref required', true);
 
@@ -1103,12 +1135,14 @@
                 const res = await fetch('/api/git/files-by-path', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url, ref, ssh_key_label, file_list, exclude_dirs }),
+                    body: JSON.stringify({ url, ref, ssh_key_label, force_refresh, file_list, exclude_dirs }),
                 });
                 const data = await res.json();
                 if (!data.success) throw new Error(data.error);
                 out.textContent = data.output;
                 out.classList.remove('empty-msg');
+                document.getElementById('files-output-header').classList.add('visible');
+                loadCacheInfo(false);
             } catch (e) {
                 out.textContent = 'Error: ' + e.message;
                 out.classList.add('empty-msg');
@@ -1214,8 +1248,67 @@
         }
 
 
+        async function loadCacheInfo(showDetail = false) {
+            try {
+                const res = await fetch('/api/git/cache');
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error || 'Failed');
+                const entries = data.entries || [];
+                const el = document.getElementById('cache-status');
+                if (!entries.length) {
+                    el.textContent = 'Cache empty';
+                    if (showDetail) showToast('Cache is empty — no archives stored');
+                    return;
+                }
+                const totalSize = entries.reduce((a, e) => a + e.size, 0);
+                const sizeStr = totalSize < 1024 ? totalSize + ' B'
+                    : totalSize < 1048576 ? (totalSize / 1024).toFixed(1) + ' KB'
+                    : (totalSize / 1048576).toFixed(1) + ' MB';
+                el.textContent = `${entries.length} cached repo(s), ${sizeStr} used`;
+                if (showDetail) {
+                    const lines = entries.map(e => `• ${e.file}  —  ${e.size_human}, ${e.age_human}`);
+                    alert('📊 Archive Cache\n\n' + lines.join('\n') + `\n\nTotal: ${entries.length} file(s), ${sizeStr}`);
+                }
+            } catch (e) {
+                console.error('Cache info failed', e);
+            }
+        }
+
+        function copyOutput(id) {
+            const el = document.getElementById(id);
+            if (!el || !el.textContent) return;
+            navigator.clipboard.writeText(el.textContent).then(() => {
+                showToast('Copied to clipboard!');
+            }).catch(() => {
+                const ta = document.createElement('textarea');
+                ta.value = el.textContent;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                showToast('Copied to clipboard!');
+            });
+        }
+
+        async function clearCache() {
+            if (!confirm('Clear all cached archives?')) return;
+            try {
+                const res = await fetch('/api/git/cache', { method: 'DELETE' });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error || 'Failed');
+                showToast(`Cache cleared: removed ${data.removed} file(s), freed ${data.freed_human}`);
+                loadCacheInfo();
+            } catch (e) {
+                showToast('Clear cache failed: ' + e.message, true);
+            }
+        }
+
+
         loadKeys();
         loadSavedRepos();
+        loadCacheInfo(false);
     </script>
 </body>
 
